@@ -289,7 +289,6 @@ async function joinGroup(event) {
   status.classList.remove("error");
   try {
     const result = await api("/api/group/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: $("#group-token").value, password: $("#group-password").value, displayName: $("#group-name-input").value }) });
-    state.accessToken = result.accessToken;
     state.group = { name: result.groupName };
     $("#group-name").textContent = result.groupName;
     $("#group-status").textContent = "Comments are enabled.";

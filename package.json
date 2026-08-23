@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "import:data": "node scripts/import-data.js"
+    "import:data": "node --env-file=.env scripts/import-data.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
     "jose": "^6.0.13",
     "pg": "^8.16.3"
   },

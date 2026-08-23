@@ -20,8 +20,8 @@ export default async function handler(request, response) {
   const name = String(displayName || "").trim().slice(0, 40);
   if (!/^[\p{L}\p{N} _.-]{2,40}$/u.test(name)) return json(response, 400, { error: "Use a display name between 2 and 40 characters" });
   const groupId = crypto.createHash("sha256").update(process.env.GROUP_TOKEN).digest("hex").slice(0, 24);
-  const accessToken = await joinSession(session.sessionId, groupId);
-  if (!accessToken) return json(response, 401, { error: "Session expired" });
+  const joined = await joinSession(session.sessionId, groupId);
+  if (!joined) return json(response, 401, { error: "Session expired" });
   response.setHeader("Set-Cookie", `sih_name=${encodeURIComponent(name)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
-  return json(response, 200, { accessToken, groupName: "Team shortlist" });
+  return json(response, 200, { groupName: "Team shortlist" });
 }

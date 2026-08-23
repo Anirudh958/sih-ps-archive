@@ -1,6 +1,6 @@
 # SIH Selection Desk
 
-A Vercel-hosted SIH problem-statement browser with Cloudflare Turnstile, short-lived access tokens, rotating refresh tokens, server-side filtering, pagination, Supabase Postgres storage, and private group comments.
+A Vercel-hosted SIH problem-statement browser with Cloudflare Turnstile, Supabase anonymous Auth JWTs, rotating Supabase refresh tokens, server-side filtering, pagination, Supabase Postgres storage, and private group comments.
 
 ## Security Boundary
 
@@ -26,24 +26,27 @@ Both `.gitignore` and `.vercelignore` exclude `ps.json` as defense in depth. Bef
 
 The import creates the schema and uploads all records as private Postgres rows. After a successful import, `ps.json` is not needed by Vercel.
 
-The publishable/anonymous key and JWKS verification key are not used by this server. Keep any `service_role` key out of the browser, GitHub, and public Vercel variables. Only the private `DATABASE_URL` belongs in Vercel server environment variables.
+The app uses the Supabase publishable key only inside Vercel functions to call Auth. It verifies user JWTs using the Supabase JWKS URL. The `kid` shown in the JWKS response is only a key identifier, not a secret. Keep any `service_role` or `sb_secret_*` key out of the browser, GitHub, and public Vercel variables.
 
-## 2. Configure Turnstile
+## 2. Configure Supabase Auth and Turnstile
 
-1. In Cloudflare Dashboard, open **Turnstile** and create a widget.
-2. Add the production hostname and `localhost` for local testing.
-3. Use **Managed** widget mode.
-4. Copy the site key and secret key.
+1. In Supabase Dashboard, open **Authentication -> Providers** and enable **Anonymous Sign-Ins**.
+2. In **Authentication -> Bot and Abuse Protection**, enable CAPTCHA protection and choose Cloudflare Turnstile.
+3. Paste the Turnstile secret key into Supabase. Do not put it in this repository or Vercel.
+4. In Cloudflare Dashboard, create a Turnstile widget.
+5. Add `sih.saireddy.dev` and `localhost` for testing.
+6. Use **Managed** mode and copy the site key.
 
 Add these Vercel environment variables:
 
 ```text
 TURNSTILE_SITE_KEY=<public site key>
-TURNSTILE_SECRET_KEY=<secret key>
 TURNSTILE_HOSTNAME=<production hostname>
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<publishable key>
 ```
 
-The site key is intentionally returned to the browser. The secret key remains inside Vercel functions and verifies each Turnstile token with Cloudflare before a session is issued.
+The site key is returned to the browser. The Turnstile secret stays in Supabase Auth. Supabase issues and refreshes the JWT; this app never creates its own JWT.
 
 ## 3. Configure Sessions and Group
 
@@ -57,8 +60,9 @@ Add these variables in Vercel Project Settings:
 
 ```text
 DATABASE_URL=<Supabase transaction pooler connection string>
-SESSION_SECRET=<random value, at least 32 characters>
-APP_ORIGIN=https://your-domain.example
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<publishable key>
+APP_ORIGIN=https://sih.saireddy.dev
 GROUP_TOKEN=<random group token shared with members>
 GROUP_PASSWORD=<separate strong password shared with members>
 ```
@@ -71,7 +75,7 @@ Do not use the group token as its password. A successful join adds a hashed grou
 2. Import the repository into Vercel.
 3. Add all variables above to Production and Preview environments as needed.
 4. Deploy and connect the custom domain.
-5. Set `APP_ORIGIN` and `TURNSTILE_HOSTNAME` to the final hostname, then redeploy.
+5. Set `APP_ORIGIN=https://sih.saireddy.dev` and `TURNSTILE_HOSTNAME=sih.saireddy.dev`, then redeploy.
 
 ## 5. Put Cloudflare in Front
 

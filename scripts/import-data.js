@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
-import { neon } from "@neondatabase/serverless";
+import { db } from "../lib/db.js";
 
 if (!process.env.DATABASE_URL) throw new Error("Set DATABASE_URL before importing data");
-const sql = neon(process.env.DATABASE_URL);
+const sql = db();
 const schema = await fs.readFile(new URL("../supabase/schema.sql", import.meta.url), "utf8");
 for (const statement of schema.split(";").map((part) => part.trim()).filter(Boolean)) await sql.query(statement);
 
