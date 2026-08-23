@@ -1,0 +1,15 @@
+{
+  "name": "sih-selection-desk",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "import:data": "node scripts/import-data.js"
+  },
+  "dependencies": {
+    "jose": "^6.0.13",
+    "pg": "^8.16.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
