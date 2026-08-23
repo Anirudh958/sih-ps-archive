@@ -13,8 +13,17 @@ CREATE INDEX IF NOT EXISTS problem_statements_filters_idx ON problem_statements 
 CREATE TABLE IF NOT EXISTS browse_sessions (
   id UUID PRIMARY KEY, refresh_hash TEXT UNIQUE NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   rotated_at TIMESTAMPTZ, expires_at TIMESTAMPTZ NOT NULL, revoked_at TIMESTAMPTZ,
-  ip_hash TEXT NOT NULL, user_agent TEXT NOT NULL, group_key TEXT
+  ip_hash TEXT NOT NULL, user_agent TEXT NOT NULL, group_key TEXT, display_name TEXT
 );
+ALTER TABLE browse_sessions ADD COLUMN IF NOT EXISTS display_name TEXT;
+
+-- A team's members are the live browse_sessions whose group_key is the team id.
+CREATE TABLE IF NOT EXISTS teams (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, name_key TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL, leader_name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS browse_sessions_group_idx ON browse_sessions (group_key);
 CREATE TABLE IF NOT EXISTS api_rate_buckets (
   session_id UUID NOT NULL REFERENCES browse_sessions(id) ON DELETE CASCADE, route TEXT NOT NULL,
   window_start TIMESTAMPTZ NOT NULL, request_count INTEGER NOT NULL,
@@ -39,5 +48,6 @@ ALTER TABLE browse_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_rate_buckets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE statement_accesses ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON problem_statements, browse_sessions, api_rate_buckets, group_comments, statement_accesses FROM anon, authenticated;
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON problem_statements, browse_sessions, api_rate_buckets, group_comments, statement_accesses, teams FROM anon, authenticated;
 REVOKE ALL ON SEQUENCE group_comments_id_seq FROM anon, authenticated;

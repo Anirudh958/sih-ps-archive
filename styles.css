@@ -29,7 +29,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .gate-panel .brand-mark { margin-bottom: 42px; }
 .gate-panel h1 { margin-bottom: 24px; font-size: clamp(38px, 7vw, 65px); }
 .gate-panel > p:not(.eyebrow, .gate-status) { max-width: 480px; color: var(--muted); font: 16px/1.55 Georgia, serif; }
-#turnstile-widget { min-height: 70px; margin-top: 28px; }
+.gate-status { min-height: 18px; margin: 12px 0 0; color: var(--muted); font-size: 12px; }
 .gate-status { min-height: 18px; margin: 12px 0 0; color: var(--muted); font-size: 12px; }
 .gate-status.error { color: var(--red); }
 .group-bar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px clamp(20px, 5vw, 80px); border-bottom: 1px solid var(--line); background: #e9efff; }
@@ -43,6 +43,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .group-form label { display: block; margin-top: 20px; }
 .group-form label span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .group-form input { width: 100%; height: 42px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--radius); }
+.team-switch { grid-template-columns: repeat(2, 1fr); margin-top: 22px; }
+.team-switch button { font-size: 12px; padding: 9px 3px; }
 .dialog-form-close { position: absolute; top: 18px; right: 18px; }
 .primary-button { margin-top: 20px; padding: 11px 18px; border: 0; border-radius: var(--radius); color: white; background: var(--blue); }
 .comment-form { margin-top: 18px; }

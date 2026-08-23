@@ -1,6 +1,6 @@
 # SIH Selection Desk
 
-A Vercel-hosted SIH problem-statement browser with Cloudflare Turnstile, Supabase anonymous Auth JWTs, rotating Supabase refresh tokens, server-side filtering, pagination, Supabase Postgres storage, and private group comments.
+A Vercel-hosted SIH problem-statement browser with Supabase anonymous Auth JWTs, rotating Supabase refresh tokens, server-side filtering, pagination, Supabase Postgres storage, and private per-team comments.
 
 ## Security Boundary
 
@@ -9,9 +9,11 @@ A Vercel-hosted SIH problem-statement browser with Cloudflare Turnstile, Supabas
 - 12 summary records per list request
 - One complete statement per detail request
 - At most 60 distinct complete statements per seven-day browsing session
-- Comments belonging to the joined group
+- Comments belonging to the joined team
 
 This slows and detects bulk collection but cannot make publicly displayed information impossible to copy. Cloudflare rate limits and bot management are still required in front of Vercel.
+
+**Turnstile is no longer used.** Anyone can call `POST /api/session` and mint a fresh anonymous session, and each new session gets its own 60-statement budget, so the per-session limits above no longer bound a determined scraper. The Cloudflare WAF rules in section 4 are now the only thing rate-limiting session creation — treat them as required, not optional. Re-enable CAPTCHA in **Supabase -> Authentication -> Bot and Abuse Protection** to restore the original boundary.
 
 Both `.gitignore` and `.vercelignore` exclude `ps.json` as defense in depth. Before every deployment, verify it is absent with `git ls-files ps.json` (the command should print nothing).
 
@@ -28,33 +30,14 @@ The import creates the schema and uploads all records as private Postgres rows. 
 
 The app uses the Supabase publishable key only inside Vercel functions to call Auth. It verifies user JWTs using the Supabase JWKS URL. The `kid` shown in the JWKS response is only a key identifier, not a secret. Keep any `service_role` or `sb_secret_*` key out of the browser, GitHub, and public Vercel variables.
 
-## 2. Configure Supabase Auth and Turnstile
+## 2. Configure Supabase Auth
 
 1. In Supabase Dashboard, open **Authentication -> Providers** and enable **Anonymous Sign-Ins**.
-2. In **Authentication -> Bot and Abuse Protection**, enable CAPTCHA protection and choose Cloudflare Turnstile.
-3. Paste the Turnstile secret key into Supabase. Do not put it in this repository or Vercel.
-4. In Cloudflare Dashboard, create a Turnstile widget.
-5. Add `sih.saireddy.dev` and `localhost` for testing.
-6. Use **Managed** mode and copy the site key.
+2. In **Authentication -> Bot and Abuse Protection**, leave CAPTCHA protection **disabled**. The browser sends no captcha token, so an enabled CAPTCHA rejects every sign-in with `captcha protection: request disallowed`.
 
-Add these Vercel environment variables:
+Supabase issues and refreshes the JWT; this app never creates its own JWT. It verifies user JWTs using the Supabase JWKS URL. The `kid` shown in the JWKS response is only a key identifier, not a secret.
 
-```text
-TURNSTILE_SITE_KEY=<public site key>
-TURNSTILE_HOSTNAME=<production hostname>
-SUPABASE_URL=https://<project-ref>.supabase.co
-SUPABASE_PUBLISHABLE_KEY=<publishable key>
-```
-
-The site key is returned to the browser. The Turnstile secret stays in Supabase Auth. Supabase issues and refreshes the JWT; this app never creates its own JWT.
-
-## 3. Configure Sessions and Group
-
-Generate independent secrets locally:
-
-```bash
-openssl rand -base64 48
-```
+## 3. Configure Vercel Environment
 
 Add these variables in Vercel Project Settings:
 
@@ -63,11 +46,9 @@ DATABASE_URL=<Supabase transaction pooler connection string>
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_PUBLISHABLE_KEY=<publishable key>
 APP_ORIGIN=https://sih.saireddy.dev
-GROUP_TOKEN=<random group token shared with members>
-GROUP_PASSWORD=<separate strong password shared with members>
 ```
 
-Do not use the group token as its password. A successful join adds a hashed group identifier to the five-minute access token. The refresh token is opaque, stored in a secure HTTP-only cookie, hashed in Postgres, and replaced after every refresh.
+Teams are created at runtime, so there are no shared group secrets to configure. The refresh token is opaque, stored in a secure HTTP-only cookie, hashed in Postgres, and replaced after every refresh. Keep any `service_role` or `sb_secret_*` key out of the browser, GitHub, and public Vercel variables.
 
 ## 4. Deploy to Vercel
 
@@ -75,7 +56,7 @@ Do not use the group token as its password. A successful join adds a hashed grou
 2. Import the repository into Vercel.
 3. Add all variables above to Production and Preview environments as needed.
 4. Deploy and connect the custom domain.
-5. Set `APP_ORIGIN=https://sih.saireddy.dev` and `TURNSTILE_HOSTNAME=sih.saireddy.dev`, then redeploy.
+5. Set `APP_ORIGIN=https://sih.saireddy.dev`, then redeploy.
 
 ## 5. Put Cloudflare in Front
 
@@ -84,18 +65,23 @@ Proxy the domain through Cloudflare and set SSL/TLS mode to **Full (strict)**. A
 | Endpoint | Suggested limit | Action |
 | --- | ---: | --- |
 | `POST /api/session` | 10 requests/IP/10 minutes | Managed Challenge |
-| `POST /api/group/join` | 5 requests/IP/15 minutes | Block for 1 hour |
+| `POST /api/team` | 5 requests/IP/15 minutes | Block for 1 hour |
 | `GET /api/problems/*` | 60 requests/IP/minute | Managed Challenge |
 | `POST /api/comments*` | 10 requests/IP/minute | Block for 10 minutes |
 
-Also enable Cloudflare Bot Fight Mode. The application separately limits requests by browsing session in Postgres, so changing IP alone does not bypass all limits.
+Also enable Cloudflare Bot Fight Mode. The application separately limits requests by browsing session in Postgres, but with Turnstile removed a caller can mint new sessions freely, so the `POST /api/session` rule above is what actually caps that.
 
 ## Filters
 
 The browser supports server-side search and filtering by theme, organization, category, effort, innovation, verdict, and serial-number range. Enter `10` and `20` under **From PS no.** and **To PS no.** to show statements 10 through 20, then select **Yellow** to limit that range to yellow verdicts.
 
-## Group Comments
+## Teams and Comments
 
-This version provides one deployment-wide private group. Members select **Join group** and enter the configured token, password, and a display name. Comments are visible only to sessions carrying that group's signed membership claim.
+Once a session opens, the team dialog offers two actions:
 
-Changing `GROUP_TOKEN` creates a different logical group. Existing comments remain in Postgres under the previous group's hashed identifier.
+- **Create team** — team name, team password, and team leader name. The name must be unique across the deployment (case-insensitive); the password is salted and scrypt-hashed in the `teams` table. The creator takes the first seat.
+- **Join team** — the same team name and password, plus the member's own name, which appears beside their comments.
+
+A team holds at most **6 members**. Membership is the set of live `browse_sessions` rows whose `group_key` is the team id, so a member's seat is released when their seven-day session expires, and joining a different team frees the old seat automatically. Closing the dialog is allowed: browsing works solo, only comments require a team.
+
+Comments are stored per team id, so they stay visible to that team only. Deleting a team's row does not delete its comments; they remain in Postgres under the old team id.

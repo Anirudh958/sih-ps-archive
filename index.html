@@ -13,16 +13,16 @@
       <div class="gate-panel">
         <span class="brand-mark">26</span>
         <p class="eyebrow">Protected browsing session</p>
-        <h1 id="access-title">Verify to open<br />the selection desk.</h1>
-        <p>Complete the check below to browse the SIH problem statements. Sessions are rate-limited to protect the dataset from bulk access.</p>
-        <div id="turnstile-widget"></div>
-        <p class="gate-status" id="gate-status" role="status">Preparing verification…</p>
+        <h1 id="access-title">Opening<br />the selection desk.</h1>
+        <p>Browse the SIH problem statements. Sessions are rate-limited to protect the dataset from bulk access.</p>
+        <p class="gate-status" id="gate-status" role="status">Opening a protected session…</p>
+        <button class="primary-button" id="gate-retry" type="button" hidden>Try again</button>
       </div>
     </section>
 
-    <section class="group-bar" id="group-bar" hidden aria-label="Group collaboration">
-      <div><span class="section-index">TEAM</span><strong id="group-name">Solo browsing</strong><span id="group-status">Join a group to comment together.</span></div>
-      <button class="text-button" id="join-group-button" type="button">Join group</button>
+    <section class="group-bar" id="group-bar" hidden aria-label="Team collaboration">
+      <div><span class="section-index">TEAM</span><strong id="group-name">Solo browsing</strong><span id="group-status">Create or join a team to comment together.</span></div>
+      <button class="text-button" id="join-group-button" type="button">Create or join team</button>
     </section>
 
     <header class="masthead">
@@ -167,16 +167,28 @@
     </dialog>
 
     <dialog id="group-dialog" aria-labelledby="group-dialog-title">
-      <form class="group-form" id="group-form" method="dialog">
-        <button class="icon-button dialog-form-close" id="group-dialog-close" type="button" aria-label="Close group dialog" title="Close"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"></path></svg></button>
-        <p class="eyebrow">Shared shortlist</p><h2 id="group-dialog-title">Join your team.</h2>
-        <p>Use the group token and password shared by your team lead. Your display name is shown beside comments.</p>
-        <label><span>Group token</span><input id="group-token" required autocomplete="off" /></label>
-        <label><span>Password</span><input id="group-password" type="password" required autocomplete="current-password" /></label>
-        <label><span>Display name</span><input id="group-name-input" required maxlength="40" autocomplete="nickname" /></label>
-        <p class="gate-status" id="group-status-message" role="status"></p>
-        <button class="primary-button" type="submit">Join group</button>
-      </form>
+      <div class="group-form">
+        <button class="icon-button dialog-form-close" id="group-dialog-close" type="button" aria-label="Close team dialog" title="Close"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"></path></svg></button>
+        <p class="eyebrow">Shared shortlist</p><h2 id="group-dialog-title">Team up.</h2>
+        <p>Create a team and share its name and password with your teammates, or join a team that already exists. A team holds up to 6 members.</p>
+        <div class="segmented team-switch" id="team-mode" role="group" aria-label="Team action">
+          <button class="active" type="button" data-mode="create">Create team</button>
+          <button type="button" data-mode="join">Join team</button>
+        </div>
+        <p class="gate-status" id="team-status" role="status"></p>
+        <form id="team-create-form">
+          <label><span>Team name</span><input id="create-team-name" required minlength="3" maxlength="40" autocomplete="off" /></label>
+          <label><span>Team password</span><input id="create-team-password" type="password" required minlength="6" maxlength="72" autocomplete="new-password" /></label>
+          <label><span>Team leader name</span><input id="create-leader-name" required minlength="2" maxlength="40" autocomplete="name" /></label>
+          <button class="primary-button" type="submit">Create team</button>
+        </form>
+        <form id="team-join-form" hidden>
+          <label><span>Team name</span><input id="join-team-name" required minlength="3" maxlength="40" autocomplete="off" /></label>
+          <label><span>Team password</span><input id="join-team-password" type="password" required minlength="6" maxlength="72" autocomplete="current-password" /></label>
+          <label><span>Your name</span><input id="join-member-name" required minlength="2" maxlength="40" autocomplete="name" /></label>
+          <button class="primary-button" type="submit">Join team</button>
+        </form>
+      </div>
     </dialog>
 
     <div class="mobile-filter-backdrop" id="filter-backdrop" hidden></div>

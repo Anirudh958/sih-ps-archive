@@ -15,7 +15,7 @@ const state = {
   to: "",
   quick: "",
   sort: "recommended",
-  group: null,
+  team: null,
   starred: new Set(JSON.parse(localStorage.getItem("sih-starred") || "[]")),
 };
 
@@ -69,7 +69,7 @@ async function refreshAccessToken() {
         if (!response.ok) throw new Error("Session expired");
         const result = await response.json();
         state.accessToken = result.accessToken;
-        if (result.groupJoined) state.group = { name: "Team shortlist" };
+        state.team = result.team || null;
         return result.accessToken;
       })
       .finally(() => { refreshRequest = null; });
@@ -192,7 +192,7 @@ function detailTemplate(problem) {
       <div class="mini-stat"><span>Deadline</span><strong>${escapeHtml(problem.deadline || "—")}</strong></div>
       ${problem.dataset_link ? `<a class="detail-link" href="${escapeHtml(problem.dataset_link)}" target="_blank" rel="noreferrer">Open official dataset ↗</a>` : ""}
       ${listSection("Strengths", problem.swot?.strengths)}${listSection("Risks", [...(problem.swot?.weaknesses || []), ...(problem.swot?.threats || [])])}${listSection("Opportunities", problem.swot?.opportunities)}
-      <section class="detail-section" id="comments-section"><h3>Team comments</h3>${state.group ? '<div id="comment-list"><p>Loading comments…</p></div><form class="comment-form" id="comment-form"><textarea id="comment-body" maxlength="2000" required placeholder="Add a note for your team…"></textarea><div class="comment-row"><span class="gate-status" id="comment-status"></span><button class="primary-button" type="submit">Add comment</button></div></form>' : '<p>Join your group to read and leave comments.</p>'}</section>
+      <section class="detail-section" id="comments-section"><h3>Team comments</h3>${state.team ? '<div id="comment-list"><p>Loading comments…</p></div><form class="comment-form" id="comment-form"><textarea id="comment-body" maxlength="2000" required placeholder="Add a note for your team…"></textarea><div class="comment-row"><span class="gate-status" id="comment-status"></span><button class="primary-button" type="submit">Add comment</button></div></form>' : '<p>Create or join a team to read and leave comments.</p>'}</section>
     </aside></div>`;
 }
 
@@ -201,12 +201,12 @@ async function openDetail(id) {
   $("#dialog-content").innerHTML = '<div class="empty-state"><p>Loading statement…</p></div>';
   $("#detail-star").dataset.star = id;
   $("#detail-star").classList.toggle("starred", state.starred.has(id));
-  dialog.showModal();
+  if (!dialog.open) dialog.showModal();
   try {
     const problem = await api(`/api/problems/${encodeURIComponent(id)}`);
     if (dialog.open && $("#detail-star").dataset.star === id) {
       $("#dialog-content").innerHTML = detailTemplate(problem);
-      if (state.group) {
+      if (state.team) {
         $("#comment-form").addEventListener("submit", (event) => submitComment(event, id));
         loadComments(id);
       }
@@ -251,9 +251,12 @@ function bindEvents() {
   $("#mobile-filter-button").addEventListener("click", () => { filters.classList.add("open"); $("#filter-backdrop").hidden = false; });
   $("#filter-close").addEventListener("click", closeMobileFilters);
   $("#filter-backdrop").addEventListener("click", closeMobileFilters);
-  $("#join-group-button").addEventListener("click", () => $("#group-dialog").showModal());
+  $("#join-group-button").addEventListener("click", () => openTeamDialog(state.team ? "join" : "create"));
   $("#group-dialog-close").addEventListener("click", () => $("#group-dialog").close());
-  $("#group-form").addEventListener("submit", joinGroup);
+  $("#team-mode").addEventListener("click", (event) => { const button = event.target.closest("button"); if (button) setTeamMode(button.dataset.mode); });
+  $("#team-create-form").addEventListener("submit", (event) => submitTeam(event, "create"));
+  $("#team-join-form").addEventListener("submit", (event) => submitTeam(event, "join"));
+  $("#gate-retry").addEventListener("click", createSession);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && filters.classList.contains("open")) closeMobileFilters();
     if (event.key === "/" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { event.preventDefault(); $("#search").focus(); }
@@ -274,26 +277,53 @@ async function startApp() {
   $("#org-count").textContent = metadata.stats.orgs;
   $("#access-gate").hidden = true;
   $("#group-bar").hidden = false;
-  if (state.group) {
-    $("#group-name").textContent = state.group.name;
-    $("#group-status").textContent = "Comments are enabled.";
-    $("#join-group-button").textContent = "Group joined";
-  }
+  renderTeamBar();
+  if (!state.team) openTeamDialog("create");
   await loadProblems();
 }
 
-async function joinGroup(event) {
+function renderTeamBar() {
+  if (!state.team) return;
+  $("#group-name").textContent = state.team.name;
+  $("#group-status").textContent = `${state.team.members} of ${state.team.maxMembers} members · led by ${state.team.leaderName}`;
+  $("#join-group-button").textContent = "Switch team";
+}
+
+function openTeamDialog(mode) {
+  setTeamMode(mode);
+  $("#team-status").textContent = "";
+  $("#team-status").classList.remove("error");
+  if (!$("#group-dialog").open) $("#group-dialog").showModal();
+}
+
+function setTeamMode(mode) {
+  document.querySelectorAll("#team-mode button").forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
+  $("#team-create-form").hidden = mode !== "create";
+  $("#team-join-form").hidden = mode === "create";
+}
+
+async function submitTeam(event, action) {
   event.preventDefault();
-  const status = $("#group-status-message");
-  status.textContent = "Joining…";
+  const status = $("#team-status");
+  const prefix = action === "create" ? "create" : "join";
+  status.textContent = action === "create" ? "Creating team…" : "Joining team…";
   status.classList.remove("error");
   try {
-    const result = await api("/api/group/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: $("#group-token").value, password: $("#group-password").value, displayName: $("#group-name-input").value }) });
-    state.group = { name: result.groupName };
-    $("#group-name").textContent = result.groupName;
-    $("#group-status").textContent = "Comments are enabled.";
-    $("#join-group-button").textContent = "Group joined";
+    const result = await api("/api/team", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action,
+        teamName: $(`#${prefix}-team-name`).value,
+        teamPassword: $(`#${prefix}-team-password`).value,
+        displayName: $(action === "create" ? "#create-leader-name" : "#join-member-name").value,
+      }),
+    });
+    state.team = result.team;
+    renderTeamBar();
+    $(`#${prefix}-team-password`).value = "";
     $("#group-dialog").close();
+    if (dialog.open) openDetail($("#detail-star").dataset.star);
   } catch (error) {
     status.textContent = error.message;
     status.classList.add("error");
@@ -328,19 +358,22 @@ async function submitComment(event, id) {
   }
 }
 
-async function createSession(turnstileToken) {
+async function createSession() {
   const status = $("#gate-status");
   status.textContent = "Opening a protected session…";
   status.classList.remove("error");
+  $("#gate-retry").hidden = true;
   try {
-    const response = await fetch("/api/session", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ turnstileToken }) });
-    if (!response.ok) throw new Error((await response.json()).error || "Verification failed");
-    state.accessToken = (await response.json()).accessToken;
+    const response = await fetch("/api/session", { method: "POST", credentials: "same-origin" });
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `Could not open a session (${response.status})`);
+    const result = await response.json();
+    state.accessToken = result.accessToken;
+    state.team = result.team || null;
     await startApp();
   } catch (error) {
     status.textContent = error.message;
     status.classList.add("error");
-    window.turnstile?.reset();
+    $("#gate-retry").hidden = false;
   }
 }
 
@@ -350,26 +383,9 @@ async function initGate() {
   try {
     await refreshAccessToken();
     await startApp();
-    return;
   } catch {
     state.accessToken = "";
-  }
-  try {
-    const response = await fetch("/api/config");
-    if (!response.ok) throw new Error("Turnstile is not configured on the server");
-    const { turnstileSiteKey } = await response.json();
-    window.onTurnstileReady = () => {
-      window.turnstile.render("#turnstile-widget", { sitekey: turnstileSiteKey, callback: createSession, "expired-callback": () => $("#gate-status").textContent = "Verification expired. Try again." });
-      $("#gate-status").textContent = "Complete the check to continue.";
-    };
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileReady&render=explicit";
-    script.async = true;
-    script.defer = true;
-    document.head.append(script);
-  } catch (error) {
-    $("#gate-status").textContent = error.message;
-    $("#gate-status").classList.add("error");
+    await createSession();
   }
 }
 
