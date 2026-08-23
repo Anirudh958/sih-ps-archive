@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Search, filter, compare, and shortlist SIH 2026 problem statements." />
+    <title>SIH 2026 Selection Desk</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <a class="brand" href="./" aria-label="SIH Selection Desk home">
+        <span class="brand-mark">26</span>
+        <span><strong>SIH</strong><small>Selection Desk</small></span>
+      </a>
+      <div class="deadline"><span>Submission deadline</span><strong>20 Sep 2026</strong></div>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Smart India Hackathon / 2026</p>
+          <h1 id="page-title">Find the problem<br />worth <em>36 hours.</em></h1>
+        </div>
+        <div class="intro-note">
+          <p>Search the official problem statements, narrow by practical constraints, and star the ones your team should discuss.</p>
+          <div class="dataset-summary" aria-label="Dataset summary">
+            <span><strong id="total-count">—</strong> statements</span>
+            <span><strong id="theme-count">—</strong> themes</span>
+            <span><strong id="org-count">—</strong> organizations</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="Problem statement explorer">
+        <aside class="filters" id="filters">
+          <div class="filter-heading">
+            <div><span class="section-index">01</span><h2>Refine</h2></div>
+            <div class="filter-heading-actions">
+              <button class="text-button" id="clear-filters" type="button">Clear all</button>
+              <button class="icon-button filter-close" id="filter-close" type="button" aria-label="Close filters" title="Close filters">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"></path></svg>
+              </button>
+            </div>
+          </div>
+
+          <label class="search-field">
+            <span>Search everything</span>
+            <span class="search-input-wrap">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+              <input id="search" type="search" placeholder="AI, agriculture, ISRO…" autocomplete="off" />
+              <kbd>/</kbd>
+            </span>
+          </label>
+
+          <div class="filter-block">
+            <span class="filter-label">Quick picks</span>
+            <div class="quick-picks">
+              <button type="button" data-quick="recommended">Recommended</button>
+              <button type="button" data-quick="low-effort">Low effort</button>
+              <button type="button" data-quick="dataset">Has dataset</button>
+              <button type="button" data-quick="starred">Starred</button>
+            </div>
+          </div>
+
+          <label class="filter-block">
+            <span class="filter-label">Theme</span>
+            <select id="theme"><option value="">All themes</option></select>
+          </label>
+
+          <label class="filter-block">
+            <span class="filter-label">Organization</span>
+            <select id="org"><option value="">All organizations</option></select>
+          </label>
+
+          <fieldset class="filter-block">
+            <legend class="filter-label">Category</legend>
+            <div class="segmented" id="category-filter">
+              <button class="active" type="button" data-value="">All</button>
+              <button type="button" data-value="Software">Software</button>
+              <button type="button" data-value="Hardware">Hardware</button>
+            </div>
+          </fieldset>
+
+          <div class="filter-row">
+            <label class="filter-block">
+              <span class="filter-label">Effort</span>
+              <select id="effort">
+                <option value="">Any</option><option>Low</option><option>Medium</option><option>High</option>
+              </select>
+            </label>
+            <label class="filter-block">
+              <span class="filter-label">Innovation</span>
+              <select id="innovation">
+                <option value="">Any</option><option>Breakthrough</option><option>Moderate</option><option>Incremental</option>
+              </select>
+            </label>
+          </div>
+        </aside>
+
+        <div class="results-panel">
+          <div class="results-toolbar">
+            <div>
+              <span class="section-index">02</span>
+              <p><strong id="result-count">—</strong> matches <span id="active-summary"></span></p>
+            </div>
+            <div class="toolbar-actions">
+              <button class="mobile-filter-button" id="mobile-filter-button" type="button">Filters <span id="filter-badge">0</span></button>
+              <label class="sort-control"><span>Sort</span><select id="sort">
+                <option value="recommended">Recommended</option>
+                <option value="number">PS number</option>
+                <option value="innovation">Most innovative</option>
+                <option value="effort">Lowest effort</option>
+                <option value="competition">Least crowded</option>
+              </select></label>
+            </div>
+          </div>
+
+          <div class="active-filters" id="active-filters" aria-label="Active filters"></div>
+          <div class="problem-list" id="problem-list" aria-live="polite"></div>
+          <div class="empty-state" id="empty-state" hidden>
+            <span>0</span><h2>No statements match.</h2><p>Remove a filter or try a broader search term.</p>
+            <button type="button" id="empty-clear">Clear filters</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="detail-dialog" aria-labelledby="detail-title">
+      <div class="dialog-shell">
+        <header class="dialog-header">
+          <span id="detail-number"></span>
+          <div>
+            <button class="icon-button" id="detail-star" type="button" aria-label="Star this problem statement" title="Star problem statement">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"></path></svg>
+            </button>
+            <button class="icon-button" id="dialog-close" type="button" aria-label="Close details" title="Close">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"></path></svg>
+            </button>
+          </div>
+        </header>
+        <div class="dialog-content" id="dialog-content"></div>
+      </div>
+    </dialog>
+
+    <div class="mobile-filter-backdrop" id="filter-backdrop" hidden></div>
+  </body>
+</html>
