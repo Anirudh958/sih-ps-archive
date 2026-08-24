@@ -18,7 +18,7 @@ and greppable from your terminal.
 [![Themes](https://img.shields.io/badge/themes-18-be185d?style=flat-square)](#-themes-across-three-years)
 [![Text](https://img.shields.io/badge/text-original%20authors-64748b?style=flat-square)](ATTRIBUTION.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-16a34a?style=flat-square)](CONTRIBUTING.md)
-[![Stars](https://img.shields.io/github/stars/DeadIndian/sih-ps-archive?style=flat-square&color=eab308)](https://github.com/DeadIndian/sih-ps-archive/stargazers)
+[![Stars](https://img.shields.io/github/stars/DeadIndian/sih-ps-archive?style=flat-square&color=eab308)](https://github.com/Vigneshrdy/sih-ps-archive/stargazers)
 
 [What's Inside](#-whats-inside) ·
 [Search Recipes](#-search-recipes) ·
@@ -345,12 +345,6 @@ under **CC BY 4.0** (© Vedant Chalke), and records exactly what normalisation w
 applied. If you redistribute, carry that attribution forward.
 
 Corrections to the provenance record are as welcome as corrections to the data.
-
-## 👥 Maintainer
-
-**[@DeadIndian](https://github.com/DeadIndian)** — corrections and additions welcome via
-[issues](https://github.com/DeadIndian/sih-ps-archive/issues) or
-[pull requests](https://github.com/DeadIndian/sih-ps-archive/pulls).
 
 ---
 
