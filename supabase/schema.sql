@@ -17,12 +17,28 @@ CREATE TABLE IF NOT EXISTS browse_sessions (
 );
 ALTER TABLE browse_sessions ADD COLUMN IF NOT EXISTS display_name TEXT;
 
--- A team's members are the live browse_sessions whose group_key is the team id.
+-- A team's membership lives in team_members. Seat 1 is the team lead.
 CREATE TABLE IF NOT EXISTS teams (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, name_key TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL, leader_name TEXT NOT NULL,
+  password_hash TEXT NOT NULL, leader_name TEXT NOT NULL, leader_id UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS leader_id UUID;
+
+-- seat BETWEEN 1 AND 6 plus UNIQUE (team_id, seat) makes a 7th row impossible to
+-- insert, so the cap holds even against a direct database write.
+CREATE TABLE IF NOT EXISTS team_members (
+  team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name TEXT NOT NULL,
+  is_lead BOOLEAN NOT NULL DEFAULT FALSE,
+  seat INTEGER NOT NULL CHECK (seat BETWEEN 1 AND 6),
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (team_id, user_id),
+  UNIQUE (team_id, seat)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS team_members_one_lead_idx ON team_members (team_id) WHERE is_lead;
+CREATE UNIQUE INDEX IF NOT EXISTS team_members_single_team_idx ON team_members (user_id);
 CREATE INDEX IF NOT EXISTS browse_sessions_group_idx ON browse_sessions (group_key);
 CREATE TABLE IF NOT EXISTS api_rate_buckets (
   session_id UUID NOT NULL REFERENCES browse_sessions(id) ON DELETE CASCADE, route TEXT NOT NULL,
@@ -49,5 +65,6 @@ ALTER TABLE api_rate_buckets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE statement_accesses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON problem_statements, browse_sessions, api_rate_buckets, group_comments, statement_accesses, teams FROM anon, authenticated;
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON problem_statements, browse_sessions, api_rate_buckets, group_comments, statement_accesses, teams, team_members FROM anon, authenticated;
 REVOKE ALL ON SEQUENCE group_comments_id_seq FROM anon, authenticated;

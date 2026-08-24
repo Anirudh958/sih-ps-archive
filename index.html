@@ -5,28 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Search, filter, compare, and shortlist SIH 2026 problem statements." />
     <title>SIH 2026 Selection Desk</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="app.js" defer></script>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
   </head>
   <body>
     <section class="access-gate" id="access-gate" aria-labelledby="access-title">
       <div class="gate-panel">
         <span class="brand-mark">26</span>
-        <p class="eyebrow">Protected browsing session</p>
-        <h1 id="access-title">Opening<br />the selection desk.</h1>
-        <p>Browse the SIH problem statements. Sessions are rate-limited to protect the dataset from bulk access.</p>
-        <p class="gate-status" id="gate-status" role="status">Opening a protected session…</p>
-        <button class="primary-button" id="gate-retry" type="button" hidden>Try again</button>
+        <p class="eyebrow">SIH 2026 Selection Desk</p>
+        <h1 id="access-title">Sign in to open<br />the selection desk.</h1>
+        <p>Create an account or sign in to browse the SIH problem statements and shortlist with your team.</p>
+
+        <div class="segmented team-switch" id="auth-mode" role="group" aria-label="Authentication mode">
+          <button class="active" type="button" data-mode="login">Log in</button>
+          <button type="button" data-mode="signup">Sign up</button>
+        </div>
+        <form class="auth-form" id="auth-form">
+          <label><span>Email</span><input id="auth-email" type="email" required autocomplete="email" /></label>
+          <label><span>Password</span><input id="auth-password" type="password" required minlength="8" maxlength="72" autocomplete="current-password" /></label>
+          <p class="gate-status" id="gate-status" role="status">Checking your session…</p>
+          <button class="primary-button" id="auth-submit" type="submit">Log in</button>
+        </form>
       </div>
     </section>
 
     <section class="group-bar" id="group-bar" hidden aria-label="Team collaboration">
-      <div><span class="section-index">TEAM</span><strong id="group-name">Solo browsing</strong><span id="group-status">Create or join a team to comment together.</span></div>
-      <button class="text-button" id="join-group-button" type="button">Create or join team</button>
+      <div><span class="section-index">TEAM</span><strong id="group-name">No team yet</strong><span id="group-status">Create or join a team to comment together.</span></div>
+      <div class="group-bar-actions">
+        <button class="text-button" id="join-group-button" type="button">Create or join team</button>
+        <button class="text-button" id="logout-button" type="button">Log out</button>
+      </div>
     </section>
 
     <header class="masthead">
-      <a class="brand" href="./" aria-label="SIH Selection Desk home">
+      <a class="brand" href="/" aria-label="SIH Selection Desk home">
         <span class="brand-mark">26</span>
         <span><strong>SIH</strong><small>Selection Desk</small></span>
       </a>
@@ -34,6 +46,7 @@
     </header>
 
     <main>
+      <div id="list-view" hidden>
       <section class="intro" aria-labelledby="page-title">
         <div>
           <p class="eyebrow">Smart India Hackathon / 2026</p>
@@ -147,30 +160,38 @@
           </div>
         </div>
       </section>
-    </main>
+      </div>
 
-    <dialog id="detail-dialog" aria-labelledby="detail-title">
-      <div class="dialog-shell">
-        <header class="dialog-header">
-          <span id="detail-number"></span>
+      <article class="detail-view" id="detail-view" hidden aria-labelledby="detail-title">
+        <div class="detail-bar">
+          <button class="text-button" id="detail-back" type="button">← Back to all statements</button>
           <div>
+            <span id="detail-number"></span>
             <button class="icon-button" id="detail-star" type="button" aria-label="Star this problem statement" title="Star problem statement">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"></path></svg>
             </button>
-            <button class="icon-button" id="dialog-close" type="button" aria-label="Close details" title="Close">
-              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"></path></svg>
-            </button>
           </div>
-        </header>
-        <div class="dialog-content" id="dialog-content"></div>
-      </div>
-    </dialog>
+        </div>
+        <div class="detail-body" id="detail-body"></div>
+      </article>
+    </main>
 
     <dialog id="group-dialog" aria-labelledby="group-dialog-title">
       <div class="group-form">
         <button class="icon-button dialog-form-close" id="group-dialog-close" type="button" aria-label="Close team dialog" title="Close"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"></path></svg></button>
         <p class="eyebrow">Shared shortlist</p><h2 id="group-dialog-title">Team up.</h2>
-        <p>Create a team and share its name and password with your teammates, or join a team that already exists. A team holds up to 6 members.</p>
+        <p>Create a team and share its name and password with your teammates, or join a team that already exists. A team holds up to 6 members including the team lead.</p>
+
+        <div class="team-panel" id="team-panel" hidden>
+          <div class="team-panel-head">
+            <strong id="team-panel-name"></strong>
+            <span class="team-count" id="team-panel-count"></span>
+          </div>
+          <ul class="team-roster" id="team-roster"></ul>
+          <p class="team-full-note" id="team-full-note" hidden>Team is full — maximum 6 members allowed.</p>
+          <button class="text-button" id="team-leave" type="button">Leave this team</button>
+        </div>
+
         <div class="segmented team-switch" id="team-mode" role="group" aria-label="Team action">
           <button class="active" type="button" data-mode="create">Create team</button>
           <button type="button" data-mode="join">Join team</button>
@@ -179,7 +200,7 @@
         <form id="team-create-form">
           <label><span>Team name</span><input id="create-team-name" required minlength="3" maxlength="40" autocomplete="off" /></label>
           <label><span>Team password</span><input id="create-team-password" type="password" required minlength="6" maxlength="72" autocomplete="new-password" /></label>
-          <label><span>Team leader name</span><input id="create-leader-name" required minlength="2" maxlength="40" autocomplete="name" /></label>
+          <label><span>Team lead name</span><input id="create-leader-name" required minlength="2" maxlength="40" autocomplete="name" /></label>
           <button class="primary-button" type="submit">Create team</button>
         </form>
         <form id="team-join-form" hidden>
@@ -191,6 +212,7 @@
       </div>
     </dialog>
 
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     <div class="mobile-filter-backdrop" id="filter-backdrop" hidden></div>
   </body>
 </html>

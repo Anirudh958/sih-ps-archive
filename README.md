@@ -1,6 +1,6 @@
 # SIH Selection Desk
 
-A Vercel-hosted SIH problem-statement browser with Supabase anonymous Auth JWTs, rotating Supabase refresh tokens, server-side filtering, pagination, Supabase Postgres storage, and private per-team comments.
+A Vercel-hosted SIH problem-statement browser with Supabase email/password Auth, rotating refresh tokens, server-side filtering, pagination, Supabase Postgres storage, six-member teams, and private per-team comments.
 
 ## Security Boundary
 
@@ -8,12 +8,17 @@ A Vercel-hosted SIH problem-statement browser with Supabase anonymous Auth JWTs,
 
 - 12 summary records per list request
 - One complete statement per detail request
-- At most 60 distinct complete statements per seven-day browsing session
+- At most 60 distinct complete statements per seven-day account
 - Comments belonging to the joined team
 
-This slows and detects bulk collection but cannot make publicly displayed information impossible to copy. Cloudflare rate limits and bot management are still required in front of Vercel.
+Every API route requires a verified Supabase access token, so a logged-out caller gets `401` and no data. This slows and detects bulk collection but cannot make publicly displayed information impossible to copy. Cloudflare rate limits and bot management are still required in front of Vercel.
 
-**Turnstile is no longer used.** Anyone can call `POST /api/session` and mint a fresh anonymous session, and each new session gets its own 60-statement budget, so the per-session limits above no longer bound a determined scraper. The Cloudflare WAF rules in section 4 are now the only thing rate-limiting session creation — treat them as required, not optional. Re-enable CAPTCHA in **Supabase -> Authentication -> Bot and Abuse Protection** to restore the original boundary.
+### Where the enforcement actually lives
+
+The browser never talks to Supabase directly — it calls Vercel functions, which hold the Supabase publishable key and open their own Postgres connection. Two consequences worth knowing:
+
+- **RLS policies are not the control here.** `anon` and `authenticated` have `REVOKE ALL` on every table, so the PostgREST path is closed outright rather than filtered. That is strictly tighter than a policy, and RLS is left enabled on all tables as a backstop. If you ever add direct browser-to-Supabase queries, you must write real policies first — the `REVOKE` is what is protecting you today.
+- **Team limits are database constraints, not handler checks.** `team_members.seat` carries `CHECK (seat BETWEEN 1 AND 6)` and `UNIQUE (team_id, seat)`, so a seventh row cannot be inserted even by a direct SQL write. `PRIMARY KEY (team_id, user_id)` blocks duplicate joins, a partial unique index blocks a second team lead, and `user_id` has a foreign key to `auth.users`. Calling the API by hand cannot get past any of them.
 
 Both `.gitignore` and `.vercelignore` exclude `ps.json` as defense in depth. Before every deployment, verify it is absent with `git ls-files ps.json` (the command should print nothing).
 
@@ -32,10 +37,14 @@ The app uses the Supabase publishable key only inside Vercel functions to call A
 
 ## 2. Configure Supabase Auth
 
-1. In Supabase Dashboard, open **Authentication -> Providers** and enable **Anonymous Sign-Ins**.
-2. In **Authentication -> Bot and Abuse Protection**, leave CAPTCHA protection **disabled**. The browser sends no captcha token, so an enabled CAPTCHA rejects every sign-in with `captcha protection: request disallowed`.
+1. In Supabase Dashboard, open **Authentication -> Providers** and enable **Email**.
+2. Disable **Anonymous Sign-Ins** — the app rejects anonymous tokens.
+3. Under **Authentication -> Providers -> Email**, decide on **Confirm email**:
+   - **Off** (fastest for a hackathon): signup returns a session and the user lands on the desk immediately.
+   - **On**: signup returns `202` and the UI says *"Check your email to confirm the account, then log in."* Both paths are handled.
+4. In **Authentication -> Bot and Abuse Protection**, leave CAPTCHA protection **disabled**. The browser sends no captcha token, so an enabled CAPTCHA rejects every sign-in with `captcha protection: request disallowed`.
 
-Supabase issues and refreshes the JWT; this app never creates its own JWT. It verifies user JWTs using the Supabase JWKS URL. The `kid` shown in the JWKS response is only a key identifier, not a secret.
+Supabase issues and refreshes the JWT; this app never creates its own JWT. It verifies user JWTs using the Supabase JWKS URL and rejects any token with `is_anonymous`. The `kid` shown in the JWKS response is only a key identifier, not a secret.
 
 ## 3. Configure Vercel Environment
 
@@ -64,24 +73,66 @@ Proxy the domain through Cloudflare and set SSL/TLS mode to **Full (strict)**. A
 
 | Endpoint | Suggested limit | Action |
 | --- | ---: | --- |
-| `POST /api/session` | 10 requests/IP/10 minutes | Managed Challenge |
+| `POST /api/auth` | 10 requests/IP/10 minutes | Managed Challenge |
 | `POST /api/team` | 5 requests/IP/15 minutes | Block for 1 hour |
 | `GET /api/problems/*` | 60 requests/IP/minute | Managed Challenge |
 | `POST /api/comments*` | 10 requests/IP/minute | Block for 10 minutes |
 
-Also enable Cloudflare Bot Fight Mode. The application separately limits requests by browsing session in Postgres, but with Turnstile removed a caller can mint new sessions freely, so the `POST /api/session` rule above is what actually caps that.
+Also enable Cloudflare Bot Fight Mode. Every route additionally rate-limits per account in Postgres, so changing IP alone does not bypass the limits.
+
+## Routes
+
+| Path | View |
+| --- | --- |
+| `/` | Login gate when signed out, statement list when signed in |
+| `/problem-statements/SIH26011` | The complete problem statement |
+
+`vercel.json` rewrites `/problem-statements/:id` to `index.html`. A signed-out visitor opening a statement URL directly sees the login screen; after signing in, that statement opens rather than the bare list.
 
 ## Filters
 
 The browser supports server-side search and filtering by theme, organization, category, effort, innovation, verdict, and serial-number range. Enter `10` and `20` under **From PS no.** and **To PS no.** to show statements 10 through 20, then select **Yellow** to limit that range to yellow verdicts.
 
+## Problem Statement Views
+
+Cards show a two-line preview, clamped with `-webkit-line-clamp`. The whole card is a link — click the title, the description, anywhere on the card, or **Read full statement →**, or focus it and press Enter.
+
+The full view is a page, not a modal, so nothing constrains its height. It renders every field the import holds: decoded summary, why it matters, background, the verbatim official description, expected-solution bullets, pain points, competitive landscape, the 36-hour build plan, evaluator questions, the evaluation scorecard, verdict panel, SWOT, and the dataset link. Long descriptions keep their paragraphs and lettered lists via `white-space: pre-wrap` rather than injected markup. `scripts/test-team.js` asserts that no `.detail-*` rule introduces `line-clamp`, `overflow: hidden`, or a `max-height`.
+
 ## Teams and Comments
 
-Once a session opens, the team dialog offers two actions:
+Once signed in, the team dialog offers two actions:
 
-- **Create team** — team name, team password, and team leader name. The name must be unique across the deployment (case-insensitive); the password is salted and scrypt-hashed in the `teams` table. The creator takes the first seat.
-- **Join team** — the same team name and password, plus the member's own name, which appears beside their comments.
+- **Create team** — team name, team password, and team lead name. The name must be unique across the deployment (case-insensitive); the password is salted and scrypt-hashed. The creator is seated first and flagged as the team lead.
+- **Join team** — the same team name and password, plus the member's own name, shown beside their comments.
 
-A team holds at most **6 members**. Membership is the set of live `browse_sessions` rows whose `group_key` is the team id, so a member's seat is released when their seven-day session expires, and joining a different team frees the old seat automatically. Closing the dialog is allowed: browsing works solo, only comments require a team.
+A team holds **6 members including the team lead**, so 5 more can join after the lead. The dialog lists the roster with a **Team Lead** badge, shows `4 / 6 Members`, and displays *"Team is full — maximum 6 members allowed."* once full. A member belongs to one team at a time and can leave to switch.
 
-Comments are stored per team id, so they stay visible to that team only. Deleting a team's row does not delete its comments; they remain in Postgres under the old team id.
+Seats are numbered 1 to 6 and a joiner takes the **lowest free** seat, so a seat given up by someone who left is reused rather than lost. When the lead leaves, the remaining member with the lowest seat inherits the role (the team is never leaderless); when the last member leaves, the team row is deleted rather than left behind as an empty team someone could join.
+
+Comments are stored per team id and visible to that team only. Deleting a team cascades its memberships but leaves its comments in Postgres under the old team id.
+
+## Running It Locally
+
+```bash
+npm install
+node --env-file=.env scripts/dev.js     # http://localhost:3000
+```
+
+`scripts/dev.js` serves the static files and routes `/api/*` to the same handlers Vercel runs, including the `/problem-statements/:id` rewrite, and logs every API request with its status. It adds `http://localhost:3000` to `APP_ORIGIN` for the duration of the process so the origin check passes.
+
+Run the offline checks with:
+
+```bash
+node scripts/test-team.js
+```
+
+## Resilience Notes
+
+Supabase's shared transaction pooler intermittently drops a connection while the pool is still opening it. Three deliberate choices keep that from logging people out:
+
+- `lib/db.js` retries once when a query fails before reaching the server (no SQLSTATE `code` and a `Connection terminated` message). A real SQL error always carries a code and is never retried.
+- `verifyAccess` only returns `null` for a missing, malformed, or expired token. A database failure is allowed to throw, so the client sees a 500 and keeps its session instead of being told it is signed out.
+- `rotateSession` sends the new refresh cookie to the browser *before* writing to Postgres. Supabase invalidates the old token the moment it issues a new one, so persisting the cookie last would strand the session permanently whenever that write failed.
+
+On the client, only a `401` from `/api/session/refresh` sends the user back to the login screen; any other failure is retried once and then reported without dropping the session.
