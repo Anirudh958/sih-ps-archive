@@ -52,12 +52,15 @@ Add these variables in Vercel Project Settings:
 
 ```text
 DATABASE_URL=<Supabase transaction pooler connection string>
+SUPABASE_DB_CA_CERT=<absolute path to Supabase root CA cert on the server>
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_PUBLISHABLE_KEY=<publishable key>
 APP_ORIGIN=https://sih.saireddy.dev
 ```
 
 Teams are created at runtime, so there are no shared group secrets to configure. The refresh token is opaque, stored in a secure HTTP-only cookie, hashed in Postgres, and replaced after every refresh. Keep any `service_role` or `sb_secret_*` key out of the browser, GitHub, and public Vercel variables.
+
+Production now refuses to connect to Postgres without a verified CA. Set either `SUPABASE_DB_CA_CERT` to a readable certificate path or `SUPABASE_DB_CA_CERT_PEM` to the PEM contents.
 
 ## 4. Deploy to Vercel
 

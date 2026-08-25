@@ -25,6 +25,12 @@ for (const fn of ["setRefreshCookie", "clearRefreshCookie"]) {
   assert.match(body.slice(0, 400), /LEGACY_COOKIE_PATH/, `${fn} clears the legacy cookie path`);
 }
 assert.match(session, /if \(data\.user\.is_anonymous\) \{\s*\n\s*clearRefreshCookie\(response\);\s*\n\s*return null;/, "anonymous refresh tokens refused");
+assert.match(session, /export async function endSessionByRefreshToken\(request, response\)/, "logout can revoke by refresh token alone");
 assert.doesNotMatch(session, /Max-Age=0; Secure"/, "clear cookie no longer hardcodes Secure (broke local http)");
+
+// DB TLS must fail closed in production instead of silently disabling verification.
+const db = fs.readFileSync("/home/vignesh/sih/lib/db.js", "utf8");
+assert.match(db, /NODE_ENV === "production" && !ca/, "production requires a CA for DB TLS");
+assert.match(db, /SUPABASE_DB_CA_CERT_PEM/, "inline PEM configuration supported");
 
 console.log("guard checks passed");

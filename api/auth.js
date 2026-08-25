@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { consumeThrottle, endSession, signInUser, signUpUser, throttleExceeded, verifyAccess } from "../lib/session.js";
+import { consumeThrottle, endSession, endSessionByRefreshToken, signInUser, signUpUser, throttleExceeded, verifyAccess } from "../lib/session.js";
 import { json, methodNotAllowed, requestIp, validOrigin } from "../lib/http.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -19,7 +19,8 @@ export default async function handler(request, response) {
 
   if (action === "logout") {
     const session = await verifyAccess(request);
-    await endSession(session?.sessionId, response);
+    if (session?.sessionId) await endSession(session.sessionId, response);
+    else await endSessionByRefreshToken(request, response);
     return json(response, 200, { ok: true });
   }
   if (action !== "login" && action !== "signup") return json(response, 400, { error: "Unknown action" });

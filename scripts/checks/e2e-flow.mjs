@@ -132,6 +132,8 @@ async function expectStatus(promise, status, message) {
 async function main() {
   const victim = await createConfirmedUser("victim");
   const owner = await createConfirmedUser("owner");
+  const logoutOnly = await createConfirmedUser("logout");
+  const quotaUser = await createConfirmedUser("quota");
   const members = await Promise.all([1, 2, 3, 4, 5, 6].map((index) => createConfirmedUser(`member${index}`)));
   const outsider = await createConfirmedUser("outsider");
 
@@ -167,6 +169,14 @@ async function main() {
   const refresh = await expectStatus(ownerClient.refresh(), 200, "refresh works from cookie alone");
   assert.equal(refresh.body.email, owner.email, "refresh restores the same account");
 
+  const logoutClient = new Client("logout-only");
+  await expectStatus(logoutClient.login(logoutOnly.email), 200, "refresh-only logout account can sign in");
+  const stolenRefreshClient = new Client("stolen-refresh");
+  stolenRefreshClient.cookies = logoutClient.cookies.map((cookie) => ({ ...cookie }));
+  logoutClient.accessToken = "";
+  await expectStatus(logoutClient.request("/api/auth", { method: "POST", json: { action: "logout" } }), 200, "logout succeeds with only the refresh cookie");
+  await expectStatus(stolenRefreshClient.request("/api/session/refresh", { method: "POST" }), 401, "refresh token is revoked server-side on refresh-only logout");
+
   const filters = await expectStatus(ownerClient.request("/api/filters", { origin: false }), 200, "filters load");
   assert.equal(filters.body.stats.total, 226, "problem count stays at 226");
 
@@ -178,6 +188,16 @@ async function main() {
   const detail = await expectStatus(ownerClient.request("/api/problems/SIH26011", { origin: false }), 200, "problem detail loads");
   const stored = await sql`SELECT data FROM problem_statements WHERE ps_number = 'SIH26011'`;
   assert.deepEqual(detail.body, stored[0].data, "detail response matches stored JSON exactly");
+
+  const quotaClient = new Client("quota");
+  await expectStatus(quotaClient.login(quotaUser.email), 200, "quota test user can sign in");
+  const quotaIds = (await sql`SELECT ps_number FROM problem_statements ORDER BY ps_number LIMIT 65`).map((row) => row.ps_number);
+  for (const psNumber of quotaIds.slice(0, 55)) {
+    await sql`INSERT INTO statement_accesses (session_id, ps_number) VALUES (${quotaClient.id}, ${psNumber}) ON CONFLICT DO NOTHING`;
+  }
+  const quotaResults = await Promise.all(quotaIds.slice(55).map((psNumber) => quotaClient.request(`/api/problems/${psNumber}`, { origin: false })));
+  assert.equal(quotaResults.filter((result) => result.status === 200).length, 5, "parallel first-time detail opens stop at 60 total views");
+  assert.equal(quotaResults.filter((result) => result.status === 429).length, 5, "parallel first-time detail opens reject the overflow");
 
   const teamName = `Flow Team ${crypto.randomBytes(3).toString("hex")}`;
   const teamPassword = "TeamPass123!";
