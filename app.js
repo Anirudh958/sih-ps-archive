@@ -37,6 +37,24 @@ function escapeHtml(value = "") {
   return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 }
 
+// Only these are ever used as a CSS class, so anything else becomes the neutral one
+// rather than being interpolated into the attribute verbatim.
+function verdictClass(value) {
+  const tier = String(value || "").toLowerCase();
+  return ["green", "yellow", "red"].includes(tier) ? tier : "yellow";
+}
+
+// escapeHtml makes a URL safe to sit inside an attribute but does nothing about its
+// scheme: `javascript:...` would survive it intact.
+function safeUrl(value) {
+  try {
+    const url = new URL(String(value), location.origin);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
 function toast(message, kind = "ok") {
   const node = $("#toast");
   node.textContent = message;
@@ -166,7 +184,7 @@ function cardTemplate(problem) {
       <span class="card-more">Read full statement →</span>
     </div>
     <div class="card-facts">
-      <div class="fact"><span>Verdict</span><strong class="verdict ${problem.verdict?.toLowerCase() || "yellow"}">${escapeHtml(problem.verdict || "—")}</strong></div>
+      <div class="fact"><span>Verdict</span><strong class="verdict ${verdictClass(problem.verdict)}">${escapeHtml(problem.verdict || "—")}</strong></div>
       <div class="fact"><span>Effort</span><strong>${escapeHtml(problem.effort || "—")}</strong></div>
       <div class="fact"><span>Innovation</span><strong>${escapeHtml(problem.innovation || "—")}</strong></div>
       ${problem.has_dataset ? '<div class="fact"><span>Data</span><strong class="dataset-dot">Available</strong></div>' : ""}
@@ -235,13 +253,13 @@ function detailTemplate(problem) {
       <section class="detail-section"><h3>36-hour build plan</h3>${plan}</section>${listSection("Questions evaluators may ask", problem.evaluator_questions)}
       ${scorecardSection(problem.evaluation_scorecard)}
     </div><aside>
-      <div class="verdict-panel"><span class="verdict ${problem.verdict?.tier?.toLowerCase() || "yellow"}">${escapeHtml(problem.verdict?.tier || "—")}</span><strong>${escapeHtml(problem.verdict?.why)}</strong><p>${escapeHtml(problem.verdict?.validate)}</p></div>
+      <div class="verdict-panel"><span class="verdict ${verdictClass(problem.verdict?.tier)}">${escapeHtml(problem.verdict?.tier || "—")}</span><strong>${escapeHtml(problem.verdict?.why)}</strong><p>${escapeHtml(problem.verdict?.validate)}</p></div>
       <div class="mini-stat"><span>Invention effort</span><strong>${escapeHtml(problem.invention_effort?.tier || "—")} · score ${escapeHtml(problem.invention_effort?.score ?? "—")}</strong></div>
       <div class="mini-stat"><span>Innovation scope</span><strong>${escapeHtml(problem.innovation_scope?.tier || "—")}</strong><span class="mini-note">${escapeHtml(problem.innovation_scope?.reason || "")}</span></div>
       <div class="mini-stat"><span>Competition</span><strong>${escapeHtml(problem.competitive_landscape?.tier || "—")}</strong></div>
       <div class="mini-stat"><span>Ideas submitted</span><strong>${escapeHtml(problem.ideas || "—")}</strong></div>
       <div class="mini-stat"><span>Deadline</span><strong>${escapeHtml(problem.deadline || "—")}</strong></div>
-      ${problem.dataset_link ? `<a class="detail-link" href="${escapeHtml(problem.dataset_link)}" target="_blank" rel="noreferrer">Open official dataset ↗</a>` : ""}
+      ${safeUrl(problem.dataset_link) ? `<a class="detail-link" href="${escapeHtml(safeUrl(problem.dataset_link))}" target="_blank" rel="noreferrer noopener">Open official dataset ↗</a>` : ""}
       ${listSection("Strengths", problem.swot?.strengths)}${listSection("Risks", [...(problem.swot?.weaknesses || []), ...(problem.swot?.threats || [])])}${listSection("Opportunities", problem.swot?.opportunities)}
       <section class="detail-section" id="comments-section"><h3>Team comments</h3>${state.team ? '<div id="comment-list"><p>Loading comments…</p></div><form class="comment-form" id="comment-form"><textarea id="comment-body" maxlength="2000" required placeholder="Add a note for your team…"></textarea><div class="comment-row"><span class="gate-status" id="comment-status"></span><button class="primary-button" type="submit">Add comment</button></div></form>' : '<p>Create or join a team to read and leave comments.</p>'}</section>
     </aside></div>`;

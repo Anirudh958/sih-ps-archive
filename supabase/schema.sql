@@ -45,6 +45,13 @@ CREATE TABLE IF NOT EXISTS api_rate_buckets (
   window_start TIMESTAMPTZ NOT NULL, request_count INTEGER NOT NULL,
   PRIMARY KEY (session_id, route, window_start)
 );
+
+-- Limits for callers that have no session yet (login/signup by IP) or that must be
+-- capped per target rather than per account (team password attempts).
+CREATE TABLE IF NOT EXISTS throttle_buckets (
+  bucket_key TEXT NOT NULL, window_start TIMESTAMPTZ NOT NULL, request_count INTEGER NOT NULL,
+  PRIMARY KEY (bucket_key, window_start)
+);
 CREATE TABLE IF NOT EXISTS group_comments (
   id BIGSERIAL PRIMARY KEY, group_key TEXT NOT NULL,
   ps_number TEXT NOT NULL REFERENCES problem_statements(ps_number) ON DELETE CASCADE,
@@ -66,5 +73,6 @@ ALTER TABLE group_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE statement_accesses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON problem_statements, browse_sessions, api_rate_buckets, group_comments, statement_accesses, teams, team_members FROM anon, authenticated;
+ALTER TABLE throttle_buckets ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON problem_statements, browse_sessions, api_rate_buckets, group_comments, statement_accesses, teams, team_members, throttle_buckets FROM anon, authenticated;
 REVOKE ALL ON SEQUENCE group_comments_id_seq FROM anon, authenticated;

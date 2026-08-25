@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { db } from "../lib/db.js";
 import { json, methodNotAllowed, validOrigin } from "../lib/http.js";
-import { TEAM_MAX_MEMBERS, consumeRateLimit, teamSummary, verifyAccess } from "../lib/session.js";
+import { TEAM_MAX_MEMBERS, consumeRateLimit, consumeThrottle, teamSummary, throttleExceeded, verifyAccess } from "../lib/session.js";
 
 const NAME_PATTERN = /^[\p{L}\p{N} _.-]+$/u;
 
@@ -106,8 +106,16 @@ export default async function handler(request, response) {
     if (!created.length) return json(response, 409, { error: "That team name is already taken" });
     teamId = created[0].id;
   } else {
+    // The per-session limit above is bypassable by registering more accounts, so the
+    // guess rate is also capped per team name. Only wrong passwords count, so a team
+    // legitimately filling its six seats never throttles itself.
+    const guessKey = `team-join-fail:${nameKey}`;
+    if (await throttleExceeded(guessKey, 12, 900)) return json(response, 429, { error: "Too many failed attempts for this team. Try again later." });
     const found = await sql`SELECT id, password_hash FROM teams WHERE name_key = ${nameKey}`;
-    if (!found.length || !verifyPassword(password, found[0].password_hash)) return json(response, 403, { error: "Invalid team name or password" });
+    if (!found.length || !verifyPassword(password, found[0].password_hash)) {
+      await consumeThrottle(guessKey, 12, 900);
+      return json(response, 403, { error: "Invalid team name or password" });
+    }
     teamId = found[0].id;
   }
 
