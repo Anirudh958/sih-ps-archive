@@ -427,7 +427,6 @@ async function startApp() {
   $("#group-bar").hidden = false;
   renderTeamBar();
   if (pendingRoute) {
-    loadMetadataNonFatal();
     navigate(pendingRoute, { replace: true });
     pendingRoute = "";
   } else {
