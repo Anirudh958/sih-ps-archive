@@ -422,6 +422,7 @@ function closeMobileFilters() {
 }
 
 async function startApp() {
+  $("#boot-screen").hidden = true;
   $("#access-gate").hidden = true;
   $("#group-bar").hidden = false;
   renderTeamBar();
@@ -573,6 +574,7 @@ function setAuthMode(mode) {
 function showGate(message = "") {
   state.accessToken = "";
   state.team = null;
+  $("#boot-screen").hidden = true;
   // Hide the app shell, not just cover it: otherwise the filters and search box
   // behind the gate stay in the tab order for a signed-out visitor.
   $("#list-view").hidden = true;
@@ -642,6 +644,8 @@ async function boot() {
   readUrl();
   bindEvents();
   setAuthMode("login");
+  $("#boot-screen").hidden = false;
+  $("#access-gate").hidden = true;
   // A protected deep link is remembered, then opened once authentication succeeds.
   if (location.pathname.startsWith(DETAIL_PREFIX)) pendingRoute = location.pathname;
   // Only a 401 means "not signed in". Anything else is the server or network having

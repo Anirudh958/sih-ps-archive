@@ -9,7 +9,16 @@
     <script src="/app.js" defer></script>
   </head>
   <body>
-    <section class="access-gate" id="access-gate" aria-labelledby="access-title">
+    <section class="access-gate access-gate-loading" id="boot-screen" aria-labelledby="boot-title">
+      <div class="gate-panel">
+        <span class="brand-mark">26</span>
+        <p class="eyebrow">SIH 2026 Selection Desk</p>
+        <h1 id="boot-title">Restoring your<br />selection desk.</h1>
+        <p>Checking your session and loading the latest state.</p>
+      </div>
+    </section>
+
+    <section class="access-gate" id="access-gate" aria-labelledby="access-title" hidden>
       <div class="gate-panel">
         <span class="brand-mark">26</span>
         <p class="eyebrow">SIH 2026 Selection Desk</p>
