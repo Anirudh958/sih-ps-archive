@@ -2,7 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/problem-statements/:id", "destination": "/index.html" }
+    { "source": "/problem-statements", "destination": "/" },
+    { "source": "/problem-statements/(.*)", "destination": "/" }
   ],
   "headers": [
     {

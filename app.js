@@ -19,6 +19,8 @@ const state = {
   team: null,
   view: "list",
   cameFromList: false,
+  listLoaded: false,
+  filtersLoaded: false,
   starred: new Set(JSON.parse(localStorage.getItem("sih-starred") || "[]")),
 };
 
@@ -30,6 +32,7 @@ const DETAIL_PREFIX = "/problem-statements/";
 let refreshRequest;
 let searchTimer;
 let listRequest;
+let metadataRequest;
 let toastTimer;
 let pendingRoute = "";
 
@@ -164,11 +167,38 @@ async function loadProblems({ append = false } = {}) {
     state.page = result.page;
     state.total = result.total;
     state.hasMore = result.hasMore;
+    state.listLoaded = true;
     render();
   } catch (error) {
     if (error.name !== "AbortError") showListError(error.message);
   } finally {
     $("#load-more").disabled = false;
+  }
+}
+
+async function loadMetadata() {
+  if (state.filtersLoaded) return;
+  if (!metadataRequest) {
+    metadataRequest = api("/api/filters")
+      .then((metadata) => {
+        populateSelect("#theme", metadata.themes);
+        populateSelect("#org", metadata.orgs);
+        $("#total-count").textContent = metadata.stats.total;
+        $("#theme-count").textContent = metadata.stats.themes;
+        $("#org-count").textContent = metadata.stats.orgs;
+        state.filtersLoaded = true;
+        syncControls();
+      })
+      .finally(() => { metadataRequest = null; });
+  }
+  return metadataRequest;
+}
+
+async function loadMetadataNonFatal() {
+  try {
+    await loadMetadata();
+  } catch (error) {
+    toast(`Filters are unavailable right now: ${error.message}`, "error");
   }
 }
 
@@ -282,6 +312,14 @@ function showList() {
   state.view = "list";
   $("#list-view").hidden = false;
   $("#detail-view").hidden = true;
+  if (!state.listLoaded) {
+    list.hidden = false;
+    $("#empty-state").hidden = true;
+    list.innerHTML = '<div class="empty-state"><p>Loading statements…</p></div>';
+    loadMetadataNonFatal();
+    loadProblems();
+    return;
+  }
   render();
 }
 
@@ -384,20 +422,15 @@ function closeMobileFilters() {
 }
 
 async function startApp() {
-  const metadata = await api("/api/filters");
-  populateSelect("#theme", metadata.themes);
-  populateSelect("#org", metadata.orgs);
-  $("#total-count").textContent = metadata.stats.total;
-  $("#theme-count").textContent = metadata.stats.themes;
-  $("#org-count").textContent = metadata.stats.orgs;
   $("#access-gate").hidden = true;
   $("#group-bar").hidden = false;
   renderTeamBar();
-  await loadProblems();
   if (pendingRoute) {
+    loadMetadataNonFatal();
     navigate(pendingRoute, { replace: true });
     pendingRoute = "";
   } else {
+    await Promise.all([loadMetadataNonFatal(), loadProblems()]);
     route();
   }
 }
@@ -626,7 +659,8 @@ async function boot() {
   try {
     await startApp();
   } catch (error) {
-    showGate(error.message);
+    toast(error.message, "error");
+    route();
   }
 }
 
