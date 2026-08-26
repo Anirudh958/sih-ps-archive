@@ -10,6 +10,18 @@ const allowed = {
   sort: ["recommended", "number", "innovation", "effort", "competition"],
 };
 
+function psSearchCandidates(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  const digits = raw.replace(/\D/g, "");
+  const candidates = new Set();
+  if (/^SIH\d{5}$/.test(raw)) candidates.add(raw);
+  if (/^\d{5}$/.test(digits)) candidates.add(`SIH${digits}`);
+  // Common shorthand/typo: users sometimes type a 6-digit year-prefixed form like
+  // 262001 when they mean SIH26001. Keep the first two digits and last three digits.
+  if (/^26\d{4}$/.test(digits)) candidates.add(`SIH${digits.slice(0, 2)}${digits.slice(3)}`);
+  return [...candidates];
+}
+
 export default async function handler(request, response) {
   if (request.method !== "GET") return methodNotAllowed(response, ["GET"]);
   const session = await verifyAccess(request);
@@ -25,7 +37,13 @@ export default async function handler(request, response) {
   const exact = (name) => allowed[name].includes(request.query[name]) ? request.query[name] : "";
 
   const search = text(request.query.search, 80);
-  if (search) add("search_text @@ websearch_to_tsquery('english', ?)", search);
+  if (search) {
+    const ids = psSearchCandidates(search);
+    if (ids.length) {
+      values.push(ids, search);
+      clauses.push(`(ps_number = ANY($${values.length - 1}) OR search_text @@ websearch_to_tsquery('english', $${values.length}))`);
+    } else add("search_text @@ websearch_to_tsquery('english', ?)", search);
+  }
   const theme = text(request.query.theme, 100);
   if (theme) add("theme = ?", theme);
   const org = text(request.query.org, 160);

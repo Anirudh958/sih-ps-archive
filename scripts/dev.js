@@ -11,7 +11,7 @@ const port = Number(process.env.PORT || 3000);
 const origin = `http://localhost:${port}`;
 process.env.APP_ORIGIN = [process.env.APP_ORIGIN, origin].filter(Boolean).join(",");
 
-const STATIC = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".txt": "text/plain", ".json": "application/json" };
+const STATIC = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".txt": "text/plain", ".json": "application/json", ".svg": "image/svg+xml" };
 const ROUTES = [
   [/^\/api\/auth$/, "../api/auth.js"],
   [/^\/api\/team$/, "../api/team.js"],
