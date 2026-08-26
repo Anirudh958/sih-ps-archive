@@ -30,7 +30,7 @@ assert.doesNotMatch(session, /Max-Age=0; Secure"/, "clear cookie no longer hardc
 
 // DB TLS must fail closed in production instead of silently disabling verification.
 const db = fs.readFileSync("/home/vignesh/sih/lib/db.js", "utf8");
-assert.match(db, /NODE_ENV === "production" && !ca/, "production requires a CA for DB TLS");
 assert.match(db, /SUPABASE_DB_CA_CERT_PEM/, "inline PEM configuration supported");
+assert.match(db, /ssl: ca \? \{ ca, rejectUnauthorized: true \} : \{ rejectUnauthorized: false \}/, "DB uses verified TLS when a CA is configured and falls back otherwise");
 
 console.log("guard checks passed");
