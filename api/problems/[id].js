@@ -26,9 +26,12 @@ export default async function handler(request, response) {
         AND (SELECT COUNT(*) FROM statement_accesses WHERE session_id = ${session.sessionId}) < 60
       ON CONFLICT DO NOTHING
       RETURNING 1
+    ),
+    statement AS (
+      SELECT data FROM problem_statements WHERE ps_number = ${id}
     )
-    SELECT EXISTS(SELECT 1 FROM seen) AS seen, EXISTS(SELECT 1 FROM inserted) AS inserted`;
+    SELECT EXISTS(SELECT 1 FROM seen) AS seen, EXISTS(SELECT 1 FROM inserted) AS inserted,
+      (SELECT data FROM statement) AS data`;
   if (!access[0].seen && !access[0].inserted) return json(response, 429, { error: "This session has reached its full-statement viewing limit" });
-  const rows = await sql`SELECT data FROM problem_statements WHERE ps_number = ${id}`;
-  return rows.length ? json(response, 200, rows[0].data) : json(response, 404, { error: "Problem statement not found" });
+  return access[0].data ? json(response, 200, access[0].data) : json(response, 404, { error: "Problem statement not found" });
 }

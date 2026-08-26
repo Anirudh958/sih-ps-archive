@@ -36,6 +36,54 @@ let metadataRequest;
 let toastTimer;
 let pendingRoute = "";
 
+function detailCacheKey(id) {
+  return state.email ? `sih-detail:${state.email}:${id}` : "";
+}
+
+function readCachedDetail(id) {
+  const key = detailCacheKey(id);
+  if (!key) return null;
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedDetail(id, problem) {
+  const key = detailCacheKey(id);
+  if (!key) return;
+  try {
+    sessionStorage.setItem(key, JSON.stringify(problem));
+  } catch {}
+}
+
+function readCachedMetadata() {
+  try {
+    const raw = sessionStorage.getItem("sih-filters:v1");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedMetadata(metadata) {
+  try {
+    sessionStorage.setItem("sih-filters:v1", JSON.stringify(metadata));
+  } catch {}
+}
+
+function applyMetadata(metadata) {
+  populateSelect("#theme", metadata.themes);
+  populateSelect("#org", metadata.orgs);
+  $("#total-count").textContent = metadata.stats.total;
+  $("#theme-count").textContent = metadata.stats.themes;
+  $("#org-count").textContent = metadata.stats.orgs;
+  state.filtersLoaded = true;
+  syncControls();
+}
+
 function escapeHtml(value = "") {
   return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 }
@@ -178,16 +226,16 @@ async function loadProblems({ append = false } = {}) {
 
 async function loadMetadata() {
   if (state.filtersLoaded) return;
+  const cached = readCachedMetadata();
+  if (cached) {
+    applyMetadata(cached);
+    return;
+  }
   if (!metadataRequest) {
     metadataRequest = api("/api/filters")
       .then((metadata) => {
-        populateSelect("#theme", metadata.themes);
-        populateSelect("#org", metadata.orgs);
-        $("#total-count").textContent = metadata.stats.total;
-        $("#theme-count").textContent = metadata.stats.themes;
-        $("#org-count").textContent = metadata.stats.orgs;
-        state.filtersLoaded = true;
-        syncControls();
+        writeCachedMetadata(metadata);
+        applyMetadata(metadata);
       })
       .finally(() => { metadataRequest = null; });
   }
@@ -336,9 +384,19 @@ async function showDetail(id) {
     $("#detail-body").innerHTML = '<div class="empty-state"><h2>Unknown statement</h2><p>That problem statement number does not exist.</p></div>';
     return;
   }
+  const cached = readCachedDetail(id);
+  if (cached) {
+    $("#detail-body").innerHTML = detailTemplate(cached);
+    if (state.team) {
+      $("#comment-form").addEventListener("submit", (event) => submitComment(event, id));
+      loadComments(id);
+    }
+    return;
+  }
   try {
     const problem = await api(`/api/problems/${encodeURIComponent(id)}`);
     if (state.view !== "detail" || $("#detail-star").dataset.star !== id) return;
+    writeCachedDetail(id, problem);
     $("#detail-body").innerHTML = detailTemplate(problem);
     if (state.team) {
       $("#comment-form").addEventListener("submit", (event) => submitComment(event, id));
@@ -457,9 +515,18 @@ function renderTeamPanel() {
   $("#team-join-form").hidden = true;
   $("#team-panel-name").textContent = state.team.name;
   $("#team-panel-count").textContent = `${state.team.members} / ${state.team.maxMembers} Members`;
-  $("#team-roster").innerHTML = state.team.roster
-    .map((person) => `<li>${escapeHtml(person.name)}${person.isLead ? '<span class="lead-badge">Team Lead</span>' : ""}</li>`).join("");
+  $("#team-roster").innerHTML = Array.isArray(state.team.roster)
+    ? state.team.roster.map((person) => `<li>${escapeHtml(person.name)}${person.isLead ? '<span class="lead-badge">Team Lead</span>' : ""}</li>`).join("")
+    : "<li>Loading team roster…</li>";
   $("#team-full-note").hidden = !state.team.full;
+}
+
+async function loadFullTeam() {
+  if (!state.team || Array.isArray(state.team.roster)) return;
+  const result = await api("/api/team");
+  state.team = result.team;
+  renderTeamBar();
+  renderTeamPanel();
 }
 
 function openTeamDialog(mode) {
@@ -468,6 +535,10 @@ function openTeamDialog(mode) {
   renderTeamPanel();
   if (!state.team) setTeamMode(mode);
   if (!$("#group-dialog").open) $("#group-dialog").showModal();
+  if (state.team) loadFullTeam().catch((error) => {
+    $("#team-status").textContent = error.message;
+    $("#team-status").classList.add("error");
+  });
 }
 
 function setTeamMode(mode) {
