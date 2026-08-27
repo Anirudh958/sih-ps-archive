@@ -35,6 +35,17 @@ let listRequest;
 let metadataRequest;
 let toastTimer;
 let pendingRoute = "";
+let commentsObserver;
+const DEFAULT_TITLE = "SIH 2026 Selection Desk";
+
+function setDocumentTitle(title = "") {
+  document.title = title ? `${title} • ${DEFAULT_TITLE}` : DEFAULT_TITLE;
+}
+
+function currentDetailId() {
+  const path = decodeURIComponent(location.pathname);
+  return path.startsWith(DETAIL_PREFIX) ? path.slice(DETAIL_PREFIX.length).replace(/\/$/, "") : "";
+}
 
 function detailCacheKey(id) {
   return state.email ? `sih-detail:${state.email}:${id}` : "";
@@ -358,6 +369,7 @@ function route() {
 
 function showList() {
   state.view = "list";
+  setDocumentTitle("");
   $("#list-view").hidden = false;
   $("#detail-view").hidden = true;
   if (!state.listLoaded) {
@@ -373,6 +385,7 @@ function showList() {
 
 async function showDetail(id) {
   state.view = "detail";
+  setDocumentTitle(id);
   $("#list-view").hidden = true;
   $("#detail-view").hidden = false;
   $("#detail-number").textContent = id;
@@ -386,10 +399,11 @@ async function showDetail(id) {
   }
   const cached = readCachedDetail(id);
   if (cached) {
+    setDocumentTitle(cached.ps_number || id);
     $("#detail-body").innerHTML = detailTemplate(cached);
     if (state.team) {
       $("#comment-form").addEventListener("submit", (event) => submitComment(event, id));
-      loadComments(id);
+      watchCommentsLoad(id);
     }
     return;
   }
@@ -397,10 +411,11 @@ async function showDetail(id) {
     const problem = await api(`/api/problems/${encodeURIComponent(id)}`);
     if (state.view !== "detail" || $("#detail-star").dataset.star !== id) return;
     writeCachedDetail(id, problem);
+    setDocumentTitle(problem.ps_number || id);
     $("#detail-body").innerHTML = detailTemplate(problem);
     if (state.team) {
       $("#comment-form").addEventListener("submit", (event) => submitComment(event, id));
-      loadComments(id);
+      watchCommentsLoad(id);
     }
   } catch (error) {
     $("#detail-body").innerHTML = `<div class="empty-state"><h2>Could not open statement</h2><p>${escapeHtml(error.message)}</p></div>`;
@@ -610,6 +625,19 @@ async function loadComments(id) {
   }
 }
 
+function watchCommentsLoad(id) {
+  const section = $("#comments-section");
+  if (!section || !state.team) return;
+  commentsObserver?.disconnect();
+  commentsObserver = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    commentsObserver?.disconnect();
+    commentsObserver = null;
+    loadComments(id);
+  }, { rootMargin: "240px 0px" });
+  commentsObserver.observe(section);
+}
+
 async function submitComment(event, id) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -718,6 +746,11 @@ async function boot() {
   $("#access-gate").hidden = true;
   // A protected deep link is remembered, then opened once authentication succeeds.
   if (location.pathname.startsWith(DETAIL_PREFIX)) pendingRoute = location.pathname;
+  const detailId = currentDetailId();
+  if (detailId && readCachedDetail(detailId)) {
+    $("#boot-screen").hidden = true;
+    showDetail(detailId);
+  }
   // Only a 401 means "not signed in". Anything else is the server or network having
   // a moment, so retry once rather than dropping the user back to the login screen.
   for (const attempt of [0, 1]) {
