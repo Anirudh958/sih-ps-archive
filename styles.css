@@ -150,11 +150,6 @@ kbd { padding: 2px 6px; border: 1px solid var(--line); border-radius: 3px; color
 .fact { display: grid; grid-template-columns: 68px 1fr; gap: 8px; align-items: baseline; font-size: 11px; }
 .fact span:first-child { color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
 .fact strong { font-size: 12px; }
-.verdict { display: inline-flex; width: max-content; align-items: center; gap: 6px; padding: 4px 7px; border-radius: 3px; font-size: 10px; letter-spacing: .06em; }
-.verdict::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.verdict.green { color: var(--green); background: var(--green-soft); }
-.verdict.yellow { color: var(--yellow); background: var(--yellow-soft); }
-.verdict.red { color: var(--red); background: var(--red-soft); }
 .icon-button { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); background: transparent; }
 .icon-button svg { width: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; }
 .icon-button.starred { border-color: #e0aa24; color: #a86c00; background: #fff4cc; }
@@ -196,9 +191,6 @@ dialog::backdrop { background: #111923a8; backdrop-filter: blur(3px); }
 .scorecard dd { margin: 5px 0 0; }
 .scorecard dd strong { display: block; font: 700 15px Georgia, serif; }
 .scorecard dd span { display: block; margin-top: 4px; color: #3f4a55; font: 14px/1.6 Georgia, serif; }
-.verdict-panel { padding: 20px; border-top: 4px solid var(--blue); background: var(--paper); }
-.verdict-panel strong { display: block; margin: 11px 0; font: 700 20px Georgia, serif; }
-.verdict-panel p { margin: 0; }
 .mini-stat { padding: 14px 0; border-bottom: 1px solid var(--line); }
 .mini-stat span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .09em; }
 .mini-stat strong { display: block; margin-top: 5px; font: 700 16px Georgia, serif; }

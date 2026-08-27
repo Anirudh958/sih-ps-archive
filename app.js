@@ -262,8 +262,6 @@ function cardTemplate(problem) {
       <span class="card-more">Read full statement →</span>
     </div>
     <div class="card-facts">
-      <div class="fact"><span>Effort</span><strong>${escapeHtml(problem.effort || "—")}</strong></div>
-      <div class="fact"><span>Innovation</span><strong>${escapeHtml(problem.innovation || "—")}</strong></div>
       ${problem.has_dataset ? '<div class="fact"><span>Data</span><strong class="dataset-dot">Available</strong></div>' : ""}
     </div>
     <button class="icon-button ${starred ? "starred" : ""}" type="button" data-star="${id}" aria-label="${starred ? "Remove star from" : "Star"} ${id}" title="${starred ? "Remove from shortlist" : "Add to shortlist"}">
@@ -319,7 +317,7 @@ function detailTemplate(problem) {
   const plan = Object.values(problem.build_plan_36h || {}).map((stage) => `<div class="plan-stage"><h4>${escapeHtml(stage.label)}</h4><ul>${(stage.items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`).join("");
   return `<p class="detail-eyebrow">${escapeHtml(problem.org)}</p>
     <h2 id="detail-title">${escapeHtml(problem.title)}</h2>
-    <div class="detail-tags"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span><span class="detail-tag">${escapeHtml(problem.innovation_scope?.tier)} innovation</span><span class="detail-tag">${escapeHtml(problem.invention_effort?.tier)} effort</span></div>
+    <div class="detail-tags"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span></div>
     <div class="detail-grid"><div>
       ${proseSection("Problem decoded", problem.problem_decode?.plain_summary || problem.description)}
       ${proseSection("Why it matters", problem.problem_decode?.why_it_matters)}
@@ -330,8 +328,6 @@ function detailTemplate(problem) {
       <section class="detail-section"><h3>36-hour build plan</h3>${plan}</section>${listSection("Questions evaluators may ask", problem.evaluator_questions)}
       ${scorecardSection(problem.evaluation_scorecard)}
     </div><aside>
-      <div class="mini-stat"><span>Invention effort</span><strong>${escapeHtml(problem.invention_effort?.tier || "—")} · score ${escapeHtml(problem.invention_effort?.score ?? "—")}</strong></div>
-      <div class="mini-stat"><span>Innovation scope</span><strong>${escapeHtml(problem.innovation_scope?.tier || "—")}</strong><span class="mini-note">${escapeHtml(problem.innovation_scope?.reason || "")}</span></div>
       <div class="mini-stat"><span>Competition</span><strong>${escapeHtml(problem.competitive_landscape?.tier || "—")}</strong></div>
       <div class="mini-stat"><span>Ideas submitted</span><strong>${escapeHtml(problem.ideas || "—")}</strong></div>
       <div class="mini-stat"><span>Deadline</span><strong>${escapeHtml(problem.deadline || "—")}</strong></div>
