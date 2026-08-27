@@ -9,13 +9,9 @@ const state = {
   theme: "",
   org: "",
   category: "",
-  effort: "",
-  innovation: "",
-  verdict: "",
   from: "",
   to: "",
   quick: "",
-  sort: "recommended",
   team: null,
   view: "list",
   cameFromList: false,
@@ -27,7 +23,7 @@ const state = {
 const $ = (selector) => document.querySelector(selector);
 const list = $("#problem-list");
 const filters = $("#filters");
-const filterNames = { search: "Search", theme: "Theme", org: "Organization", category: "Category", effort: "Effort", innovation: "Innovation", verdict: "Verdict", from: "From PS", to: "To PS", quick: "Quick pick" };
+const filterNames = { search: "Search", theme: "Theme", org: "Organization", category: "Category", from: "From PS", to: "To PS", quick: "Quick pick" };
 const DETAIL_PREFIX = "/problem-statements/";
 let refreshRequest;
 let searchTimer;
@@ -99,13 +95,6 @@ function escapeHtml(value = "") {
   return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 }
 
-// Only these are ever used as a CSS class, so anything else becomes the neutral one
-// rather than being interpolated into the attribute verbatim.
-function verdictClass(value) {
-  const tier = String(value || "").toLowerCase();
-  return ["green", "yellow", "red"].includes(tier) ? tier : "yellow";
-}
-
 // escapeHtml makes a URL safe to sit inside an attribute but does nothing about its
 // scheme: `javascript:...` would survive it intact.
 function safeUrl(value) {
@@ -142,7 +131,7 @@ function populateSelect(selector, values) {
 
 function readUrl() {
   const params = new URLSearchParams(location.search);
-  ["search", "theme", "org", "category", "effort", "innovation", "verdict", "from", "to", "quick", "sort"].forEach((key) => {
+  ["search", "theme", "org", "category", "from", "to", "quick"].forEach((key) => {
     if (params.has(key)) state[key] = params.get(key);
   });
 }
@@ -150,15 +139,15 @@ function readUrl() {
 function syncUrl() {
   if (state.view !== "list") return;
   const params = new URLSearchParams();
-  ["search", "theme", "org", "category", "effort", "innovation", "verdict", "from", "to", "quick", "sort"].forEach((key) => {
-    if (state[key] && !(key === "sort" && state[key] === "recommended")) params.set(key, state[key]);
+  ["search", "theme", "org", "category", "from", "to", "quick"].forEach((key) => {
+    if (state[key]) params.set(key, state[key]);
   });
   history.replaceState(history.state, "", `/${params.size ? `?${params}` : ""}`);
 }
 
 function syncControls() {
   $("#search").value = state.search;
-  ["theme", "org", "effort", "innovation", "verdict", "sort"].forEach((key) => $(`#${key}`).value = state[key]);
+  ["theme", "org"].forEach((key) => $(`#${key}`).value = state[key]);
   $("#ps-from").value = state.from;
   $("#ps-to").value = state.to;
   document.querySelectorAll("#category-filter button").forEach((button) => button.classList.toggle("active", button.dataset.value === state.category));
@@ -207,8 +196,8 @@ async function api(path, options = {}, retry = true) {
 }
 
 function queryString(page) {
-  const params = new URLSearchParams({ page, sort: state.sort });
-  ["search", "theme", "org", "category", "effort", "innovation", "verdict", "from", "to", "quick"].forEach((key) => {
+  const params = new URLSearchParams({ page });
+  ["search", "theme", "org", "category", "from", "to", "quick"].forEach((key) => {
     if (state[key]) params.set(key, state[key]);
   });
   if (state.quick === "starred") params.set("ids", [...state.starred].join(","));
@@ -273,7 +262,6 @@ function cardTemplate(problem) {
       <span class="card-more">Read full statement →</span>
     </div>
     <div class="card-facts">
-      <div class="fact"><span>Verdict</span><strong class="verdict ${verdictClass(problem.verdict)}">${escapeHtml(problem.verdict || "—")}</strong></div>
       <div class="fact"><span>Effort</span><strong>${escapeHtml(problem.effort || "—")}</strong></div>
       <div class="fact"><span>Innovation</span><strong>${escapeHtml(problem.innovation || "—")}</strong></div>
       ${problem.has_dataset ? '<div class="fact"><span>Data</span><strong class="dataset-dot">Available</strong></div>' : ""}
@@ -285,9 +273,9 @@ function cardTemplate(problem) {
 }
 
 function activeFilterEntries() {
-  return ["search", "theme", "org", "category", "effort", "innovation", "verdict", "from", "to", "quick"]
+  return ["search", "theme", "org", "category", "from", "to", "quick"]
     .filter((key) => state[key])
-    .map((key) => [key, key === "from" ? `From ${state[key]}` : key === "to" ? `To ${state[key]}` : state[key] === "low-effort" ? "Low effort" : state[key] === "dataset" ? "Has dataset" : state[key][0].toUpperCase() + state[key].slice(1)]);
+    .map((key) => [key, key === "from" ? `From ${state[key]}` : key === "to" ? `To ${state[key]}` : state[key] === "dataset" ? "Has dataset" : state[key][0].toUpperCase() + state[key].slice(1)]);
 }
 
 function render() {
@@ -342,7 +330,6 @@ function detailTemplate(problem) {
       <section class="detail-section"><h3>36-hour build plan</h3>${plan}</section>${listSection("Questions evaluators may ask", problem.evaluator_questions)}
       ${scorecardSection(problem.evaluation_scorecard)}
     </div><aside>
-      <div class="verdict-panel"><span class="verdict ${verdictClass(problem.verdict?.tier)}">${escapeHtml(problem.verdict?.tier || "—")}</span><strong>${escapeHtml(problem.verdict?.why)}</strong><p>${escapeHtml(problem.verdict?.validate)}</p></div>
       <div class="mini-stat"><span>Invention effort</span><strong>${escapeHtml(problem.invention_effort?.tier || "—")} · score ${escapeHtml(problem.invention_effort?.score ?? "—")}</strong></div>
       <div class="mini-stat"><span>Innovation scope</span><strong>${escapeHtml(problem.innovation_scope?.tier || "—")}</strong><span class="mini-note">${escapeHtml(problem.innovation_scope?.reason || "")}</span></div>
       <div class="mini-stat"><span>Competition</span><strong>${escapeHtml(problem.competitive_landscape?.tier || "—")}</strong></div>
@@ -433,7 +420,7 @@ function toggleStar(id) {
 }
 
 function clearFilters() {
-  Object.assign(state, { search: "", theme: "", org: "", category: "", effort: "", innovation: "", verdict: "", from: "", to: "", quick: "" });
+  Object.assign(state, { search: "", theme: "", org: "", category: "", from: "", to: "", quick: "" });
   loadProblems();
 }
 
@@ -445,7 +432,7 @@ function filterChanged() {
 
 function bindEvents() {
   $("#search").addEventListener("input", (event) => { state.search = event.target.value; clearTimeout(searchTimer); searchTimer = setTimeout(filterChanged, 300); });
-  ["theme", "org", "effort", "innovation", "verdict", "sort"].forEach((key) => $(`#${key}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
+  ["theme", "org"].forEach((key) => $(`#${key}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
   [["ps-from", "from"], ["ps-to", "to"]].forEach(([id, key]) => $(`#${id}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
   $("#category-filter").addEventListener("click", (event) => { const button = event.target.closest("button"); if (button) { state.category = button.dataset.value; filterChanged(); } });
   document.querySelector(".quick-picks").addEventListener("click", (event) => { const button = event.target.closest("button"); if (button) { state.quick = state.quick === button.dataset.quick ? "" : button.dataset.quick; filterChanged(); } });

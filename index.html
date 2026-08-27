@@ -106,8 +106,6 @@
           <div class="filter-block">
             <span class="filter-label">Quick picks</span>
             <div class="quick-picks">
-              <button type="button" data-quick="recommended">Recommended</button>
-              <button type="button" data-quick="low-effort">Low effort</button>
               <button type="button" data-quick="dataset">Has dataset</button>
               <button type="button" data-quick="starred">Starred</button>
             </div>
@@ -132,25 +130,10 @@
             </div>
           </fieldset>
 
-            <div class="filter-row">
-            <label class="filter-block">
-              <span class="filter-label">Effort</span>
-              <select id="effort">
-                <option value="">Any</option><option>Low</option><option>Medium</option><option>High</option>
-              </select>
-            </label>
-            <label class="filter-block">
-              <span class="filter-label">Innovation</span>
-              <select id="innovation">
-                <option value="">Any</option><option>Breakthrough</option><option>Moderate</option><option>Incremental</option>
-              </select>
-              </label>
-            </div>
-            <div class="filter-row">
+          <div class="filter-row">
               <label class="filter-block"><span class="filter-label">From PS no.</span><input class="range-input" id="ps-from" type="number" min="1" max="226" placeholder="1" /></label>
               <label class="filter-block"><span class="filter-label">To PS no.</span><input class="range-input" id="ps-to" type="number" min="1" max="226" placeholder="226" /></label>
-            </div>
-            <label class="filter-block"><span class="filter-label">Verdict</span><select id="verdict"><option value="">Any verdict</option><option value="GREEN">Green</option><option value="YELLOW">Yellow</option><option value="RED">Red</option></select></label>
+          </div>
         </aside>
 
         <div class="results-panel">
@@ -161,13 +144,6 @@
             </div>
             <div class="toolbar-actions">
               <button class="mobile-filter-button" id="mobile-filter-button" type="button">Filters <span id="filter-badge">0</span></button>
-              <label class="sort-control"><span>Sort</span><select id="sort">
-                <option value="recommended">Recommended</option>
-                <option value="number">PS number</option>
-                <option value="innovation">Most innovative</option>
-                <option value="effort">Lowest effort</option>
-                <option value="competition">Least crowded</option>
-              </select></label>
             </div>
           </div>
 
