@@ -4,11 +4,14 @@
 
 ### Every Smart India Hackathon problem statement from 2024, 2025 and 2026 — one file each, plain Markdown, no login wall.
 
+**Browse the archive online:** [https://sih.saireddy.dev/](https://sih.saireddy.dev/)
+
 The official SIH portal publishes its problem statements, then replaces them next season.
 This repository keeps them. **607 problem statements** from **82 organisations**,
 **189,240 words** of ministry-authored engineering briefs, frozen as `SIHxxxx.md`
 and greppable from your terminal.
 
+[![Browse Online](https://img.shields.io/badge/Browse%20Online-sih.saireddy.dev-f97316?style=for-the-badge)](https://sih.saireddy.dev/)
 [![Problem Statements](https://img.shields.io/badge/problem%20statements-607-0f766e?style=for-the-badge)](#-whats-inside)
 [![Years](https://img.shields.io/badge/years-2024%20·%202025%20·%202026-1d4ed8?style=for-the-badge)](#-whats-inside)
 [![Format](https://img.shields.io/badge/format-Markdown-000000?style=for-the-badge&logo=markdown&logoColor=white)](#-anatomy-of-a-problem-statement)
@@ -20,6 +23,7 @@ and greppable from your terminal.
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-16a34a?style=flat-square)](CONTRIBUTING.md)
 [![Stars](https://img.shields.io/github/stars/DeadIndian/sih-ps-archive?style=flat-square&color=eab308)](https://github.com/Vigneshrdy/sih-ps-archive/stargazers)
 
+[Live Site](https://sih.saireddy.dev/) ·
 [What's Inside](#-whats-inside) ·
 [Search Recipes](#-search-recipes) ·
 [Coverage & Gaps](#-coverage--gaps) ·
