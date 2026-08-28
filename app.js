@@ -290,6 +290,22 @@ function render() {
   syncUrl();
 }
 
+function renderFilterState() {
+  const entries = activeFilterEntries();
+  $("#active-filters").innerHTML = entries.map(([key, label]) => `<button class="active-filter" type="button" data-remove-filter="${key}" title="Remove ${filterNames[key]}">${escapeHtml(label)}</button>`).join("");
+  $("#filter-badge").textContent = entries.length;
+  syncControls();
+  syncUrl();
+}
+
+function showListLoading(message = "Loading statements…") {
+  renderFilterState();
+  list.hidden = false;
+  $("#empty-state").hidden = true;
+  $("#load-more").hidden = true;
+  list.innerHTML = `<div class="empty-state"><p>${escapeHtml(message)}</p></div>`;
+}
+
 function showListError(message) {
   list.hidden = false;
   list.innerHTML = `<div class="empty-state"><h2>Could not load statements</h2><p>${escapeHtml(message)}</p></div>`;
@@ -416,13 +432,15 @@ function toggleStar(id) {
 }
 
 function clearFilters() {
+  clearTimeout(searchTimer);
   Object.assign(state, { search: "", theme: "", org: "", category: "", from: "", to: "", quick: "" });
+  closeMobileFilters();
+  showListLoading("Clearing filters…");
   loadProblems();
 }
 
 function filterChanged() {
-  syncControls();
-  syncUrl();
+  showListLoading();
   loadProblems();
 }
 
