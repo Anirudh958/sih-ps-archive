@@ -1,4 +1,4 @@
-import { db } from "/home/vignesh/sih/lib/db.js";
+import { db } from "../../lib/db.js";
 const sql = db();
 const rows = await sql`SELECT b.id, u.is_anonymous, b.expires_at > NOW() AS still_valid, b.revoked_at IS NULL AS not_revoked, b.group_key
   FROM browse_sessions b JOIN auth.users u ON u.id = b.id ORDER BY b.created_at`;

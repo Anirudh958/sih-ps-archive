@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
-import { db } from "/home/vignesh/sih/lib/db.js";
+import { db } from "../../lib/db.js";
 const sql = db();
-const schema = await fs.readFile("/home/vignesh/sih/supabase/schema.sql", "utf8");
+const schema = await fs.readFile(new URL("../../supabase/schema.sql", import.meta.url), "utf8");
 for (const s of schema.split(";").map((p) => p.trim()).filter(Boolean)) await sql.query(s);
 console.log("schema applied (throttle_buckets created)");
 
