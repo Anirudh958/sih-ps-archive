@@ -108,6 +108,7 @@
             <div class="quick-picks">
               <button type="button" data-quick="dataset">Has dataset</button>
               <button type="button" data-quick="starred">Starred</button>
+              <button type="button" data-quick="hide-rejected">Hide rejected</button>
             </div>
           </div>
 
@@ -143,11 +144,15 @@
               <p><strong id="result-count">—</strong> matches <span id="active-summary"></span></p>
             </div>
             <div class="toolbar-actions">
+              <button class="text-button" id="open-compare" type="button" hidden>Compare selected (<span id="compare-count">0</span>)</button>
+              <button class="text-button" id="export-board" type="button">Export board</button>
               <button class="mobile-filter-button" id="mobile-filter-button" type="button">Filters <span id="filter-badge">0</span></button>
             </div>
           </div>
 
+          <div class="review-summary" id="review-summary"></div>
           <div class="active-filters" id="active-filters" aria-label="Active filters"></div>
+          <div class="review-board" id="review-board"></div>
           <div class="problem-list" id="problem-list" aria-live="polite"></div>
           <button class="load-more" id="load-more" type="button" hidden>Load 12 more</button>
           <div class="empty-state" id="empty-state" hidden>
@@ -205,6 +210,15 @@
           <label><span>Your name</span><input id="join-member-name" required minlength="2" maxlength="40" autocomplete="name" /></label>
           <button class="primary-button" type="submit">Join team</button>
         </form>
+      </div>
+    </dialog>
+
+    <dialog id="compare-dialog" aria-labelledby="compare-dialog-title">
+      <div class="group-form compare-form">
+        <button class="icon-button dialog-form-close" id="compare-dialog-close" type="button" aria-label="Close compare dialog" title="Close"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"></path></svg></button>
+        <p class="eyebrow">Problem comparison</p><h2 id="compare-dialog-title">Compare problem statements.</h2>
+        <p>Review the shortlisted problem statements side by side before your team decides.</p>
+        <div id="compare-content"><p>Pick 2 to 4 problem statements to compare.</p></div>
       </div>
     </dialog>
 

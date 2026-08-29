@@ -10,28 +10,17 @@ export default async function handler(request, response) {
   const id = String(request.query.id || "");
   if (!/^SIH\d{5}$/.test(id)) return json(response, 400, { error: "Invalid problem statement number" });
   const sql = db();
-  // Locking the session row serializes first-time detail opens for one account, so
-  // parallel requests cannot all observe the count below 60 and slip past the cap.
-  const access = await sql`WITH lock_session AS (
-      SELECT id FROM browse_sessions WHERE id = ${session.sessionId} FOR UPDATE
-    ),
-    seen AS (
-      SELECT 1 FROM statement_accesses WHERE session_id = ${session.sessionId} AND ps_number = ${id}
-    ),
-    inserted AS (
-      INSERT INTO statement_accesses (session_id, ps_number)
-      SELECT ${session.sessionId}, ${id}
-      FROM lock_session
-      WHERE NOT EXISTS (SELECT 1 FROM seen)
-        AND (SELECT COUNT(*) FROM statement_accesses WHERE session_id = ${session.sessionId}) < 60
-      ON CONFLICT DO NOTHING
-      RETURNING 1
-    ),
-    statement AS (
-      SELECT data FROM problem_statements WHERE ps_number = ${id}
-    )
-    SELECT EXISTS(SELECT 1 FROM seen) AS seen, EXISTS(SELECT 1 FROM inserted) AS inserted,
-      (SELECT data FROM statement) AS data`;
-  if (!access[0].seen && !access[0].inserted) return json(response, 429, { error: "This session has reached its full-statement viewing limit" });
-  return access[0].data ? json(response, 200, access[0].data) : json(response, 404, { error: "Problem statement not found" });
+  const access = await sql.transaction(async (tx) => {
+    await tx`SELECT id FROM browse_sessions WHERE id = ${session.sessionId} FOR UPDATE`;
+    const seen = await tx`SELECT 1 FROM statement_accesses WHERE session_id = ${session.sessionId} AND ps_number = ${id}`;
+    if (!seen.length) {
+      const counts = await tx`SELECT COUNT(*)::int AS total FROM statement_accesses WHERE session_id = ${session.sessionId}`;
+      if (counts[0].total >= 60) return { overLimit: true, data: null };
+      await tx`INSERT INTO statement_accesses (session_id, ps_number) VALUES (${session.sessionId}, ${id}) ON CONFLICT DO NOTHING`;
+    }
+    const rows = await tx`SELECT data FROM problem_statements WHERE ps_number = ${id}`;
+    return { overLimit: false, data: rows[0]?.data || null };
+  });
+  if (access.overLimit) return json(response, 429, { error: "This session has reached its full-statement viewing limit" });
+  return access.data ? json(response, 200, access.data) : json(response, 404, { error: "Problem statement not found" });
 }

@@ -15,8 +15,12 @@ const state = {
   team: null,
   view: "list",
   cameFromList: false,
+  currentProblem: null,
   listLoaded: false,
   filtersLoaded: false,
+  reviewCache: {},
+  compare: new Set(JSON.parse(localStorage.getItem("sih-compare") || "[]")),
+  boardCollapsed: JSON.parse(localStorage.getItem("sih-board-collapsed") || "{}"),
   starred: new Set(JSON.parse(localStorage.getItem("sih-starred") || "[]")),
 };
 
@@ -33,6 +37,9 @@ let toastTimer;
 let pendingRoute = "";
 let commentsObserver;
 const DEFAULT_TITLE = "SIH 2026 Selection Desk";
+const READING_STATES = { "to-read": "To read", read: "Read" };
+const DECISION_STATES = { keep: "Keep", accept: "Accept", reject: "Reject" };
+const VOTE_STATES = { yes: "Yes", maybe: "Maybe", no: "No" };
 
 function setDocumentTitle(title = "") {
   document.title = title ? `${title} • ${DEFAULT_TITLE}` : DEFAULT_TITLE;
@@ -45,6 +52,85 @@ function currentDetailId() {
 
 function detailCacheKey(id) {
   return state.email ? `sih-detail:${state.email}:${id}` : "";
+}
+
+function emptyReview() {
+  return { reading: "", decision: "", privateNote: "", vote: "", votes: { yes: 0, maybe: 0, no: 0, total: 0 } };
+}
+
+function normalizeReviewPayload(payload = {}) {
+  return {
+    ...emptyReview(),
+    ...(payload.review || payload),
+    vote: payload.vote || payload.review?.vote || "",
+    votes: { ...emptyReview().votes, ...(payload.votes || payload.review?.votes || {}) },
+  };
+}
+
+function reviewState(id) {
+  return state.reviewCache[id] || emptyReview();
+}
+
+function compareIds() {
+  return [...state.compare];
+}
+
+function persistCompare() {
+  localStorage.setItem("sih-compare", JSON.stringify(compareIds()));
+}
+
+function persistBoardCollapsed() {
+  localStorage.setItem("sih-board-collapsed", JSON.stringify(state.boardCollapsed));
+}
+
+function reviewBadge(tone, label) {
+  return `<span class="status-badge ${tone}">${label}</span>`;
+}
+
+function reviewBadges(id) {
+  const review = reviewState(id);
+  return [
+    review.reading ? reviewBadge(`reading-${review.reading}`, READING_STATES[review.reading]) : "",
+    review.decision ? reviewBadge(`decision-${review.decision}`, DECISION_STATES[review.decision]) : "",
+    review.vote ? reviewBadge(`vote-${review.vote}`, `Vote: ${VOTE_STATES[review.vote]}`) : "",
+  ].filter(Boolean).join("");
+}
+
+function decisionFilter(problem) {
+  return state.quick !== "hide-rejected" || reviewState(problem.ps_number).decision !== "reject";
+}
+
+async function loadReview(id) {
+  const result = await api(`/api/reviews?ps=${encodeURIComponent(id)}`);
+  const review = normalizeReviewPayload(result);
+  state.reviewCache[id] = review;
+  return review;
+}
+
+async function saveReview(id, payload) {
+  const result = await api(`/api/reviews?ps=${encodeURIComponent(id)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const review = normalizeReviewPayload(result);
+  state.reviewCache[id] = review;
+  return review;
+}
+
+async function loadReviewsForProblems(ids) {
+  const missing = ids.filter((id) => !(id in state.reviewCache));
+  if (!missing.length) return;
+  const result = await api(`/api/reviews?ids=${missing.map(encodeURIComponent).join(",")}`);
+  for (const id of missing) state.reviewCache[id] = normalizeReviewPayload(result.reviews[id] || {});
+}
+
+async function problemForCompare(id) {
+  const cached = readCachedDetail(id);
+  if (cached) return cached;
+  const problem = await api(`/api/problems/${encodeURIComponent(id)}`);
+  writeCachedDetail(id, problem);
+  return problem;
 }
 
 function readCachedDetail(id) {
@@ -198,9 +284,10 @@ async function api(path, options = {}, retry = true) {
 function queryString(page) {
   const params = new URLSearchParams({ page });
   ["search", "theme", "org", "category", "from", "to", "quick"].forEach((key) => {
-    if (state[key]) params.set(key, state[key]);
+    if (state[key] && key !== "quick") params.set(key, state[key]);
   });
   if (state.quick === "starred") params.set("ids", [...state.starred].join(","));
+  if (state.quick === "dataset") params.set("quick", state.quick);
   return params;
 }
 
@@ -211,9 +298,11 @@ async function loadProblems({ append = false } = {}) {
   $("#load-more").disabled = true;
   try {
     const result = await api(`/api/problems?${queryString(page)}`, { signal: listRequest.signal });
-    state.problems = append ? [...state.problems, ...result.items] : result.items;
+    await loadReviewsForProblems(result.items.map((item) => item.ps_number));
+    const incoming = result.items.filter(decisionFilter);
+    state.problems = append ? [...state.problems, ...incoming] : incoming;
     state.page = result.page;
-    state.total = result.total;
+    state.total = state.quick === "hide-rejected" ? state.problems.length : result.total;
     state.hasMore = result.hasMore;
     state.listLoaded = true;
     render();
@@ -253,16 +342,20 @@ async function loadMetadataNonFatal() {
 function cardTemplate(problem) {
   const starred = state.starred.has(problem.ps_number);
   const id = escapeHtml(problem.ps_number);
+  const statuses = reviewBadges(problem.ps_number);
+  const inCompare = state.compare.has(problem.ps_number);
   return `<article class="problem-card" data-open="${id}" tabindex="0" role="link" aria-label="Open ${id} in full">
     <div><span class="ps-id">${id}</span><span class="ps-category">${escapeHtml(problem.category)}</span></div>
     <div class="card-main">
       <h2>${escapeHtml(problem.title)}</h2>
       <p class="card-org">${escapeHtml(problem.org)} · ${escapeHtml(problem.theme)}</p>
+      ${statuses ? `<div class="card-statuses">${statuses}</div>` : ""}
       <p class="card-summary">${escapeHtml(problem.summary)}</p>
       <span class="card-more">Read full statement →</span>
     </div>
     <div class="card-facts">
       ${problem.has_dataset ? '<div class="fact"><span>Data</span><strong class="dataset-dot">Available</strong></div>' : ""}
+      <button class="text-button" type="button" data-compare="${id}">${inCompare ? "Remove compare" : "Compare"}</button>
     </div>
     <button class="icon-button ${starred ? "starred" : ""}" type="button" data-star="${id}" aria-label="${starred ? "Remove star from" : "Star"} ${id}" title="${starred ? "Remove from shortlist" : "Add to shortlist"}">
       <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"></path></svg>
@@ -273,19 +366,100 @@ function cardTemplate(problem) {
 function activeFilterEntries() {
   return ["search", "theme", "org", "category", "from", "to", "quick"]
     .filter((key) => state[key])
-    .map((key) => [key, key === "from" ? `From ${state[key]}` : key === "to" ? `To ${state[key]}` : state[key] === "dataset" ? "Has dataset" : state[key][0].toUpperCase() + state[key].slice(1)]);
+    .map((key) => [key, key === "from" ? `From ${state[key]}` : key === "to" ? `To ${state[key]}` : state[key] === "dataset" ? "Has dataset" : state[key] === "hide-rejected" ? "Hide rejected" : state[key][0].toUpperCase() + state[key].slice(1)]);
+}
+
+function reviewSummaryCounts() {
+  return state.problems.reduce((counts, problem) => {
+    const review = reviewState(problem.ps_number);
+    if (review.reading === "to-read") counts.toRead += 1;
+    if (review.reading === "read") counts.read += 1;
+    if (review.decision === "keep") counts.keep += 1;
+    if (review.decision === "accept") counts.accept += 1;
+    if (review.decision === "reject") counts.reject += 1;
+    return counts;
+  }, { toRead: 0, read: 0, keep: 0, accept: 0, reject: 0 });
+}
+
+function renderReviewSummary() {
+  const counts = reviewSummaryCounts();
+  const cards = [
+    [counts.accept, "Accepted"],
+    [counts.keep, "Keep"],
+    [counts.reject, "Rejected"],
+    [counts.toRead, "To read"],
+    [counts.read, "Read"],
+  ].filter(([count]) => count > 0);
+  $("#review-summary").innerHTML = cards.map(([count, label]) => `<div class="summary-card"><strong>${count}</strong><span>${label}</span></div>`).join("");
+}
+
+function renderBoardSection(title, items) {
+  if (!items.length) return "";
+  const collapsed = Boolean(state.boardCollapsed[title]);
+  return `<section class="board-section"><div class="board-head"><h3>${escapeHtml(title)}</h3><button class="board-toggle" type="button" data-toggle-board="${escapeHtml(title)}">${collapsed ? "Expand" : "Collapse"}</button></div><div class="board-items" ${collapsed ? "hidden" : ""}>${items.map((problem) => `<div class="board-item"><div class="board-copy"><strong>${escapeHtml(problem.ps_number)} · ${escapeHtml(problem.title)}</strong><p>${escapeHtml(problem.org)} · ${escapeHtml(problem.theme)}</p></div><div class="board-item-actions"><button class="text-button" type="button" data-open="${escapeHtml(problem.ps_number)}">Open</button><button class="text-button" type="button" data-board-decision="keep" data-ps="${escapeHtml(problem.ps_number)}">Keep</button><button class="text-button" type="button" data-board-decision="accept" data-ps="${escapeHtml(problem.ps_number)}">Accept</button><button class="text-button" type="button" data-board-decision="reject" data-ps="${escapeHtml(problem.ps_number)}">Reject</button></div></div>`).join("")}</div></section>`;
+}
+
+function renderReviewBoard() {
+  const groups = {
+    Accepted: state.problems.filter((problem) => reviewState(problem.ps_number).decision === "accept"),
+    Keep: state.problems.filter((problem) => reviewState(problem.ps_number).decision === "keep"),
+    Rejected: state.problems.filter((problem) => reviewState(problem.ps_number).decision === "reject"),
+    "To Read": state.problems.filter((problem) => reviewState(problem.ps_number).reading === "to-read"),
+  };
+  $("#review-board").innerHTML = Object.entries(groups).map(([title, items]) => renderBoardSection(title, items)).join("");
+}
+
+async function setDecision(id, decision) {
+  await saveReview(id, { ...reviewState(id), decision });
+  if (state.currentProblem?.ps_number === id) renderCurrentProblem();
+  if (state.quick === "hide-rejected" && decision === "reject") {
+    state.problems = state.problems.filter((problem) => problem.ps_number !== id);
+    state.total = state.problems.length;
+  }
+  render();
+}
+
+function toggleBoardSection(title) {
+  state.boardCollapsed[title] = !state.boardCollapsed[title];
+  persistBoardCollapsed();
+  renderReviewBoard();
+}
+
+function exportBoard() {
+  const groups = {
+    Accepted: state.problems.filter((problem) => reviewState(problem.ps_number).decision === "accept"),
+    Keep: state.problems.filter((problem) => reviewState(problem.ps_number).decision === "keep"),
+    Rejected: state.problems.filter((problem) => reviewState(problem.ps_number).decision === "reject"),
+    "To Read": state.problems.filter((problem) => reviewState(problem.ps_number).reading === "to-read"),
+  };
+  const total = Object.values(groups).reduce((sum, items) => sum + items.length, 0);
+  if (!total) return toast("Nothing to export yet. Mark some problem statements first.", "error");
+  const body = ["# SIH Review Board", ""]
+    .concat(Object.entries(groups).flatMap(([title, items]) => items.length ? [`## ${title}`, ...items.map((problem) => `- ${problem.ps_number} - ${problem.title} (${problem.org})`), ""] : []))
+    .join("\n");
+  const blob = new Blob([body], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "sih-review-board.md";
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function render() {
   list.innerHTML = state.problems.map(cardTemplate).join("");
-  list.hidden = state.total === 0;
-  $("#empty-state").hidden = state.total !== 0;
+  list.hidden = state.problems.length === 0;
+  $("#empty-state").hidden = state.problems.length !== 0;
   $("#result-count").textContent = state.total;
   $("#active-summary").textContent = `· showing ${state.problems.length}`;
   $("#load-more").hidden = !state.hasMore;
   const entries = activeFilterEntries();
   $("#active-filters").innerHTML = entries.map(([key, label]) => `<button class="active-filter" type="button" data-remove-filter="${key}" title="Remove ${filterNames[key]}">${escapeHtml(label)}</button>`).join("");
   $("#filter-badge").textContent = entries.length;
+  $("#compare-count").textContent = state.compare.size;
+  $("#open-compare").hidden = state.compare.size === 0;
+  renderReviewSummary();
+  renderReviewBoard();
   syncControls();
   syncUrl();
 }
@@ -294,6 +468,10 @@ function renderFilterState() {
   const entries = activeFilterEntries();
   $("#active-filters").innerHTML = entries.map(([key, label]) => `<button class="active-filter" type="button" data-remove-filter="${key}" title="Remove ${filterNames[key]}">${escapeHtml(label)}</button>`).join("");
   $("#filter-badge").textContent = entries.length;
+  $("#compare-count").textContent = state.compare.size;
+  $("#open-compare").hidden = state.compare.size === 0;
+  renderReviewSummary();
+  renderReviewBoard();
   syncControls();
   syncUrl();
 }
@@ -331,6 +509,7 @@ function scorecardSection(scorecard) {
 
 function detailTemplate(problem) {
   const plan = Object.values(problem.build_plan_36h || {}).map((stage) => `<div class="plan-stage"><h4>${escapeHtml(stage.label)}</h4><ul>${(stage.items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`).join("");
+  const review = reviewState(problem.ps_number);
   return `<p class="detail-eyebrow">${escapeHtml(problem.org)}</p>
     <h2 id="detail-title">${escapeHtml(problem.title)}</h2>
     <div class="detail-tags"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span></div>
@@ -344,12 +523,19 @@ function detailTemplate(problem) {
       <section class="detail-section"><h3>36-hour build plan</h3>${plan}</section>${listSection("Questions evaluators may ask", problem.evaluator_questions)}
       ${scorecardSection(problem.evaluation_scorecard)}
     </div><aside>
+      <section class="detail-section review-panel"><h3>Your review</h3>
+        <div class="review-group"><span>Reading</span><div class="review-actions">${Object.entries(READING_STATES).map(([value, label]) => `<button class="review-button ${review.reading === value ? "active" : ""}" type="button" data-set-reading="${value}">${label}</button>`).join("")}<button class="review-button clear" type="button" data-clear-reading>Clear</button></div></div>
+        <div class="review-group"><span>Decision</span><div class="review-actions">${Object.entries(DECISION_STATES).map(([value, label]) => `<button class="review-button ${review.decision === value ? "active" : ""}" type="button" data-set-decision="${value}">${label}</button>`).join("")}<button class="review-button clear" type="button" data-clear-decision>Clear</button></div></div>
+        ${state.team ? `<div class="review-group"><span>Team vote</span><div class="review-actions">${Object.entries(VOTE_STATES).map(([value, label]) => `<button class="review-button ${review.vote === value ? "active" : ""}" type="button" data-set-vote="${value}">${label}</button>`).join("")}<button class="review-button clear" type="button" data-clear-vote>Clear</button></div><div class="card-statuses"><span class="status-badge vote-yes">Yes ${review.votes.yes}</span><span class="status-badge vote-maybe">Maybe ${review.votes.maybe}</span><span class="status-badge vote-no">No ${review.votes.no}</span></div></div>` : ""}
+        <form class="private-note-form" id="private-note-form"><label><span class="filter-label">Private note</span><textarea id="private-note-body" maxlength="4000" placeholder="Write your own note for this problem statement…">${escapeHtml(review.privateNote || "")}</textarea></label><div class="private-note-row"><span class="gate-status" id="private-note-status"></span><div class="private-note-actions"><button class="text-button" type="button" id="private-note-clear">Clear note</button><button class="primary-button" type="submit">Save note</button></div></div></form>
+        <div class="review-group"><span>Compare</span><div class="review-actions"><button class="review-button ${state.compare.has(problem.ps_number) ? "active" : ""}" type="button" data-compare="${escapeHtml(problem.ps_number)}">${state.compare.has(problem.ps_number) ? "Selected for compare" : "Add to compare"}</button></div></div>
+      </section>
       <div class="mini-stat"><span>Competition</span><strong>${escapeHtml(problem.competitive_landscape?.tier || "—")}</strong></div>
       <div class="mini-stat"><span>Ideas submitted</span><strong>${escapeHtml(problem.ideas || "—")}</strong></div>
       <div class="mini-stat"><span>Deadline</span><strong>${escapeHtml(problem.deadline || "—")}</strong></div>
       ${safeUrl(problem.dataset_link) ? `<a class="detail-link" href="${escapeHtml(safeUrl(problem.dataset_link))}" target="_blank" rel="noreferrer noopener">Open official dataset ↗</a>` : ""}
       ${listSection("Strengths", problem.swot?.strengths)}${listSection("Risks", [...(problem.swot?.weaknesses || []), ...(problem.swot?.threats || [])])}${listSection("Opportunities", problem.swot?.opportunities)}
-      <section class="detail-section" id="comments-section"><h3>Team comments</h3>${state.team ? '<div id="comment-list"><p>Loading comments…</p></div><form class="comment-form" id="comment-form"><textarea id="comment-body" maxlength="2000" required placeholder="Add a note for your team…"></textarea><div class="comment-row"><span class="gate-status" id="comment-status"></span><button class="primary-button" type="submit">Add comment</button></div></form>' : '<p>Create or join a team to read and leave comments.</p>'}</section>
+      <section class="detail-section" id="comments-section"><h3>Team notes</h3>${state.team ? '<div id="comment-list"><p>Loading team notes…</p></div><form class="comment-form" id="comment-form"><textarea id="comment-body" maxlength="2000" required placeholder="Add a team note…"></textarea><div class="comment-row"><span class="gate-status" id="comment-status"></span><button class="primary-button" type="submit">Add team note</button></div></form>' : '<p>Create or join a team to read and leave team notes.</p>'}</section>
     </aside></div>`;
 }
 
@@ -368,6 +554,7 @@ function route() {
 
 function showList() {
   state.view = "list";
+  state.currentProblem = null;
   setDocumentTitle("");
   $("#list-view").hidden = false;
   $("#detail-view").hidden = true;
@@ -380,6 +567,17 @@ function showList() {
     return;
   }
   render();
+}
+
+function renderCurrentProblem() {
+  if (!state.currentProblem) return;
+  $("#detail-body").innerHTML = detailTemplate(state.currentProblem);
+  $("#private-note-form")?.addEventListener("submit", submitPrivateNote);
+  $("#private-note-clear")?.addEventListener("click", clearPrivateNote);
+  if (state.team) {
+    $("#comment-form").addEventListener("submit", (event) => submitComment(event, state.currentProblem.ps_number));
+    watchCommentsLoad(state.currentProblem.ps_number);
+  }
 }
 
 async function showDetail(id) {
@@ -398,24 +596,25 @@ async function showDetail(id) {
   }
   const cached = readCachedDetail(id);
   if (cached) {
+    state.currentProblem = cached;
     setDocumentTitle(cached.ps_number || id);
-    $("#detail-body").innerHTML = detailTemplate(cached);
-    if (state.team) {
-      $("#comment-form").addEventListener("submit", (event) => submitComment(event, id));
-      watchCommentsLoad(id);
-    }
+    renderCurrentProblem();
+    loadReview(id).then(() => {
+      if (state.currentProblem?.ps_number === id) renderCurrentProblem();
+      if (state.listLoaded) render();
+    }).catch(() => {});
     return;
   }
   try {
     const problem = await api(`/api/problems/${encodeURIComponent(id)}`);
     if (state.view !== "detail" || $("#detail-star").dataset.star !== id) return;
     writeCachedDetail(id, problem);
+    state.currentProblem = problem;
     setDocumentTitle(problem.ps_number || id);
-    $("#detail-body").innerHTML = detailTemplate(problem);
-    if (state.team) {
-      $("#comment-form").addEventListener("submit", (event) => submitComment(event, id));
-      watchCommentsLoad(id);
-    }
+    renderCurrentProblem();
+    await loadReview(id);
+    if (state.currentProblem?.ps_number === id) renderCurrentProblem();
+    if (state.listLoaded) render();
   } catch (error) {
     $("#detail-body").innerHTML = `<div class="empty-state"><h2>Could not open statement</h2><p>${escapeHtml(error.message)}</p></div>`;
   }
@@ -429,6 +628,34 @@ function toggleStar(id) {
     return;
   }
   if (state.quick === "starred") loadProblems(); else render();
+}
+
+function toggleCompare(id) {
+  if (state.compare.has(id)) state.compare.delete(id);
+  else {
+    if (state.compare.size >= 4) return toast("Compare supports up to 4 problem statements.", "error");
+    state.compare.add(id);
+  }
+  persistCompare();
+  if (state.view === "detail" && state.currentProblem?.ps_number === id) renderCurrentProblem();
+  if (state.listLoaded) render();
+}
+
+async function openCompareDialog() {
+  const ids = compareIds();
+  if (ids.length < 2) return toast("Pick at least 2 problem statements to compare.", "error");
+  $("#compare-content").innerHTML = "<p>Loading comparison…</p>";
+  if (!$("#compare-dialog").open) $("#compare-dialog").showModal();
+  try {
+    const problems = await Promise.all(ids.map(problemForCompare));
+    $("#compare-content").innerHTML = `<div class="compare-grid">${problems.map((problem) => {
+      const review = reviewState(problem.ps_number);
+      const statuses = reviewBadges(problem.ps_number);
+      return `<article class="compare-card"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span><h3>${escapeHtml(problem.title)}</h3><p>${escapeHtml(problem.org)}</p>${statuses ? `<div class="card-statuses">${statuses}</div>` : ""}<p>${escapeHtml(problem.problem_decode?.plain_summary || problem.summary || problem.description || "")}</p>${review.privateNote ? `<section><strong>Your note</strong><p>${escapeHtml(review.privateNote)}</p></section>` : ""}${problem.expected_solution_bullets?.length ? `<section><strong>Expected solution</strong><ul>${problem.expected_solution_bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : ""}<div class="board-item-actions"><button class="text-button" type="button" data-open="${escapeHtml(problem.ps_number)}">Open</button><button class="text-button" type="button" data-compare="${escapeHtml(problem.ps_number)}">Remove compare</button></div></article>`;
+    }).join("")}</div>`;
+  } catch (error) {
+    $("#compare-content").innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+  }
 }
 
 function clearFilters() {
@@ -453,6 +680,8 @@ function bindEvents() {
   list.addEventListener("click", (event) => {
     const star = event.target.closest("[data-star]");
     if (star) return toggleStar(star.dataset.star);
+    const compare = event.target.closest("[data-compare]");
+    if (compare) return toggleCompare(compare.dataset.compare);
     const card = event.target.closest("[data-open]");
     if (card) openStatement(card.dataset.open);
   });
@@ -460,13 +689,91 @@ function bindEvents() {
     const card = event.target.closest("[data-open]");
     if (card && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); openStatement(card.dataset.open); }
   });
+  $("#review-board").addEventListener("click", async (event) => {
+    const toggle = event.target.closest("[data-toggle-board]");
+    if (toggle) return toggleBoardSection(toggle.dataset.toggleBoard);
+    const open = event.target.closest("[data-open]");
+    if (open) return openStatement(open.dataset.open);
+    const move = event.target.closest("[data-board-decision]");
+    if (move) {
+      try {
+        await setDecision(move.dataset.ps, move.dataset.boardDecision);
+      } catch (error) {
+        toast(error.message, "error");
+      }
+    }
+  });
   $("#active-filters").addEventListener("click", (event) => { const button = event.target.closest("[data-remove-filter]"); if (button) { state[button.dataset.removeFilter] = ""; filterChanged(); } });
   $("#load-more").addEventListener("click", () => loadProblems({ append: true }));
   $("#clear-filters").addEventListener("click", clearFilters);
   $("#empty-clear").addEventListener("click", clearFilters);
   $("#detail-back").addEventListener("click", () => { if (state.cameFromList) history.back(); else navigate("/"); });
   $("#detail-star").addEventListener("click", (event) => toggleStar(event.currentTarget.dataset.star));
+  $("#detail-view").addEventListener("click", async (event) => {
+    if (!state.currentProblem) return;
+    const id = state.currentProblem.ps_number;
+    try {
+      const reading = event.target.closest("[data-set-reading]");
+      if (reading) {
+        await saveReview(id, { ...reviewState(id), reading: reading.dataset.setReading });
+        renderCurrentProblem();
+        if (state.listLoaded) render();
+        return;
+      }
+      const decision = event.target.closest("[data-set-decision]");
+      if (decision) {
+        await saveReview(id, { ...reviewState(id), decision: decision.dataset.setDecision });
+        renderCurrentProblem();
+        if (state.listLoaded) render();
+        return;
+      }
+      const vote = event.target.closest("[data-set-vote]");
+      if (vote) {
+        await saveReview(id, { ...reviewState(id), vote: vote.dataset.setVote });
+        renderCurrentProblem();
+        if (state.listLoaded) render();
+        return;
+      }
+      if (event.target.closest("[data-clear-reading]")) {
+        await saveReview(id, { ...reviewState(id), reading: "" });
+        renderCurrentProblem();
+        if (state.listLoaded) render();
+        return;
+      }
+      if (event.target.closest("[data-clear-decision]")) {
+        await saveReview(id, { ...reviewState(id), decision: "" });
+        renderCurrentProblem();
+        if (state.listLoaded) render();
+        return;
+      }
+      if (event.target.closest("[data-clear-vote]")) {
+        await saveReview(id, { ...reviewState(id), vote: "" });
+        renderCurrentProblem();
+        if (state.listLoaded) render();
+        return;
+      }
+      const compare = event.target.closest("[data-compare]");
+      if (compare) toggleCompare(compare.dataset.compare);
+    } catch (error) {
+      toast(error.message, "error");
+    }
+  });
   $("#mobile-filter-button").addEventListener("click", () => { filters.classList.add("open"); $("#filter-backdrop").hidden = false; });
+  $("#open-compare").addEventListener("click", openCompareDialog);
+  $("#export-board").addEventListener("click", exportBoard);
+  $("#compare-dialog-close").addEventListener("click", () => $("#compare-dialog").close());
+  $("#compare-content").addEventListener("click", (event) => {
+    const open = event.target.closest("[data-open]");
+    if (open) {
+      $("#compare-dialog").close();
+      return openStatement(open.dataset.open);
+    }
+    const compare = event.target.closest("[data-compare]");
+    if (compare) {
+      toggleCompare(compare.dataset.compare);
+      return openCompareDialog().catch((error) => toast(error.message, "error"));
+    }
+  });
   $("#filter-close").addEventListener("click", closeMobileFilters);
   $("#filter-backdrop").addEventListener("click", closeMobileFilters);
   $("#join-group-button").addEventListener("click", () => openTeamDialog(state.team ? "join" : "create"));
@@ -626,6 +933,32 @@ async function loadComments(id) {
   }
 }
 
+async function submitPrivateNote(event) {
+  event.preventDefault();
+  if (!state.currentProblem) return;
+  const form = event.currentTarget;
+  const status = $("#private-note-status");
+  status.textContent = "";
+  status.classList.remove("error");
+  busy(form, true, "Saving note…");
+  try {
+    await saveReview(state.currentProblem.ps_number, { ...reviewState(state.currentProblem.ps_number), privateNote: $("#private-note-body").value.trim() });
+    renderCurrentProblem();
+    if (state.listLoaded) render();
+    toast("Private note saved");
+  } catch (error) {
+    status.textContent = error.message;
+    status.classList.add("error");
+  } finally {
+    busy(form, false);
+  }
+}
+
+function clearPrivateNote() {
+  if (!$("#private-note-body")) return;
+  $("#private-note-body").value = "";
+}
+
 function watchCommentsLoad(id) {
   const section = $("#comments-section");
   if (!section || !state.team) return;
@@ -673,6 +1006,8 @@ function setAuthMode(mode) {
 function showGate(message = "") {
   state.accessToken = "";
   state.team = null;
+  state.currentProblem = null;
+  state.reviewCache = {};
   $("#boot-screen").hidden = true;
   // Hide the app shell, not just cover it: otherwise the filters and search box
   // behind the gate stay in the tab order for a signed-out visitor.
@@ -747,11 +1082,6 @@ async function boot() {
   $("#access-gate").hidden = true;
   // A protected deep link is remembered, then opened once authentication succeeds.
   if (location.pathname.startsWith(DETAIL_PREFIX)) pendingRoute = location.pathname;
-  const detailId = currentDetailId();
-  if (detailId && readCachedDetail(detailId)) {
-    $("#boot-screen").hidden = true;
-    showDetail(detailId);
-  }
   // Only a 401 means "not signed in". Anything else is the server or network having
   // a moment, so retry once rather than dropping the user back to the login screen.
   for (const attempt of [0, 1]) {

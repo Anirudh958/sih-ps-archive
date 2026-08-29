@@ -63,16 +63,37 @@ CREATE TABLE IF NOT EXISTS statement_accesses (
   ps_number TEXT NOT NULL REFERENCES problem_statements(ps_number) ON DELETE CASCADE,
   first_accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (session_id, ps_number)
 );
+CREATE TABLE IF NOT EXISTS user_problem_reviews (
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  ps_number TEXT NOT NULL REFERENCES problem_statements(ps_number) ON DELETE CASCADE,
+  reading_status TEXT CHECK (reading_status IN ('to-read', 'read')),
+  decision_status TEXT CHECK (decision_status IN ('keep', 'accept', 'reject')),
+  private_note TEXT NOT NULL DEFAULT '' CHECK (char_length(private_note) <= 4000),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, ps_number)
+);
+CREATE TABLE IF NOT EXISTS team_problem_votes (
+  team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  ps_number TEXT NOT NULL REFERENCES problem_statements(ps_number) ON DELETE CASCADE,
+  vote TEXT NOT NULL CHECK (vote IN ('yes', 'maybe', 'no')),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (team_id, user_id, ps_number)
+);
 CREATE INDEX IF NOT EXISTS browse_sessions_expiry_idx ON browse_sessions (expires_at);
 CREATE INDEX IF NOT EXISTS group_comments_lookup_idx ON group_comments (group_key, ps_number, created_at DESC);
+CREATE INDEX IF NOT EXISTS user_problem_reviews_lookup_idx ON user_problem_reviews (user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS team_problem_votes_lookup_idx ON team_problem_votes (team_id, ps_number, updated_at DESC);
 
 ALTER TABLE problem_statements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE browse_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_rate_buckets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE statement_accesses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_problem_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_problem_votes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE throttle_buckets ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON problem_statements, browse_sessions, api_rate_buckets, group_comments, statement_accesses, teams, team_members, throttle_buckets FROM anon, authenticated;
+REVOKE ALL ON problem_statements, browse_sessions, api_rate_buckets, group_comments, statement_accesses, user_problem_reviews, team_problem_votes, teams, team_members, throttle_buckets FROM anon, authenticated;
 REVOKE ALL ON SEQUENCE group_comments_id_seq FROM anon, authenticated;

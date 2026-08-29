@@ -15,6 +15,7 @@ const STATIC = { ".html": "text/html", ".js": "text/javascript", ".css": "text/c
 const ROUTES = [
   [/^\/api\/auth$/, "../api/auth.js"],
   [/^\/api\/team$/, "../api/team.js"],
+  [/^\/api\/reviews$/, "../api/reviews.js"],
   [/^\/api\/filters$/, "../api/filters.js"],
   [/^\/api\/comments$/, "../api/comments/index.js"],
   [/^\/api\/session\/refresh$/, "../api/session/refresh.js"],
