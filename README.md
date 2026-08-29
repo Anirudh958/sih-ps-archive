@@ -1,89 +1,120 @@
+<div align="center">
+
 # SIH Selection Desk
 
-A Vercel-hosted SIH problem-statement browser with Supabase email/password Auth, rotating refresh tokens, server-side filtering, pagination, Supabase Postgres storage, six-member teams, and private per-team comments.
+### Private, team-oriented browser for Smart India Hackathon 2026 problem statements
 
-## Security Boundary
+A Vercel-hosted problem-statement desk with Supabase email/password Auth, rotating
+refresh tokens, server-side filtering, pagination, Supabase Postgres storage,
+six-member teams, and private per-team comments.
 
-`ps.json` must not be deployed or committed. It is used once from your local machine to import the statements into Supabase Postgres. Browsers can only request:
+[![License](https://img.shields.io/github/license/Vigneshrdy/sih-ps?style=flat-square)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/Vigneshrdy/sih-ps?style=flat-square)](https://github.com/Vigneshrdy/sih-ps/stargazers)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
+![Made with Node.js](https://img.shields.io/badge/made%20with-Node.js-blue?style=flat-square)
 
-- 12 summary records per list request
-- One complete statement per detail request
-- At most 60 distinct complete statements per seven-day account
-- Comments belonging to the joined team
+[Getting Started](#-installation) ·
+[Architecture](docs/ARCHITECTURE.md) ·
+[Report Bug](https://github.com/Vigneshrdy/sih-ps/issues) ·
+[Request Feature](https://github.com/Vigneshrdy/sih-ps/issues)
 
-Every API route requires a verified Supabase access token, so a logged-out caller gets `401` and no data. This slows and detects bulk collection but cannot make publicly displayed information impossible to copy. Cloudflare rate limits and bot management are still required in front of Vercel.
+<img src="assets/screenshots/hero.png" alt="SIH Selection Desk screenshot" width="80%" />
 
-### Where the enforcement actually lives
+</div>
 
-The browser never talks to Supabase directly — it calls Vercel functions, which hold the Supabase publishable key and open their own Postgres connection. Two consequences worth knowing:
+---
 
-- **RLS policies are not the control here.** `anon` and `authenticated` have `REVOKE ALL` on every table, so the PostgREST path is closed outright rather than filtered. That is strictly tighter than a policy, and RLS is left enabled on all tables as a backstop. If you ever add direct browser-to-Supabase queries, you must write real policies first — the `REVOKE` is what is protecting you today.
-- **Team limits are database constraints, not handler checks.** `team_members.seat` carries `CHECK (seat BETWEEN 1 AND 6)` and `UNIQUE (team_id, seat)`, so a seventh row cannot be inserted even by a direct SQL write. `PRIMARY KEY (team_id, user_id)` blocks duplicate joins, a partial unique index blocks a second team lead, and `user_id` has a foreign key to `auth.users`. Calling the API by hand cannot get past any of them.
+## 📖 Table of Contents
 
-Both `.gitignore` and `.vercelignore` exclude `ps.json` as defense in depth. Before every deployment, verify it is absent with `git ls-files ps.json` (the command should print nothing).
+- [Features](#-features)
+- [Screenshots](#-screenshots)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Configuration](#-configuration)
+- [Deployment](#-deployment)
+- [Security Model](#-security-model)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-## 1. Create Private Storage
+---
 
-1. Open your Supabase project and run [`supabase/schema.sql`](/home/vignesh/sih/supabase/schema.sql) in **SQL Editor**.
-2. In **Project Settings -> Database**, copy the **Transaction pooler** connection string, which uses port `6543`.
-3. Install dependencies with `npm install`.
-4. Create a local `.env` from `.env.example` and set `DATABASE_URL`.
-5. Keep `ps.json` in this directory locally. It is already excluded by `.gitignore`.
-6. Run `npm run import:data`.
+## ✨ Features
 
-The import creates the schema and uploads all records as private Postgres rows. After a successful import, `ps.json` is not needed by Vercel.
+- **Problem statement browser** — paginated server-side list (12 per page) with full-text search accepting both `SIH26011` and `26011` forms
+- **Filters** — theme, organization, category, dataset availability, starred items, hidden rejected items, serial-number range, quick picks
+- **Full statement view** — summary, background, verbatim official description, expected-solution bullets, pain points, competitive landscape, 36-hour build plan, evaluator questions, scorecard, SWOT, dataset link
+- **Six-member teams** — create or join with name + password, seat 1 is the lead, automatic lead succession, one team per user
+- **Reviews** — private per-problem reading state (`to read` / `read`), decision (`keep` / `accept` / `reject`), private note (4000 chars), team votes (`yes` / `maybe` / `no`) with live totals
+- **Review board** — status-grouped board, card badges, summary bar, compare up to 4 statements, markdown export
+- **Private per-team comments** — visible only to the joined team
+- **Hardened session handling** — Supabase Auth with rotating refresh tokens, hashed at rest, bound to IP hash + user agent
 
-The app uses the Supabase publishable key only inside Vercel functions to call Auth. It verifies user JWTs using the Supabase JWKS URL. The `kid` shown in the JWKS response is only a key identifier, not a secret. Keep any `service_role` or `sb_secret_*` key out of the browser, GitHub, and public Vercel variables.
+## 📸 Screenshots
 
-## 2. Configure Supabase Auth
+| Statement list | Full statement view |
+| :---: | :---: |
+| <img src="assets/screenshots/list.png" width="100%" /> | <img src="assets/screenshots/detail.png" width="100%" /> |
 
-1. In Supabase Dashboard, open **Authentication -> Providers** and enable **Email**.
-2. Disable **Anonymous Sign-Ins** — the app rejects anonymous tokens.
-3. Under **Authentication -> Providers -> Email**, decide on **Confirm email**:
-   - **Off** (fastest for a hackathon): signup returns a session and the user lands on the desk immediately.
-   - **On**: signup returns `202` and the UI says *"Check your email to confirm the account, then log in."* Both paths are handled.
-4. In **Authentication -> Bot and Abuse Protection**, leave CAPTCHA protection **disabled**. The browser sends no captcha token, so an enabled CAPTCHA rejects every sign-in with `captcha protection: request disallowed`.
+| Team dialog | Review board |
+| :---: | :---: |
+| <img src="assets/screenshots/team.png" width="100%" /> | <img src="assets/screenshots/board.png" width="100%" /> |
 
-Supabase issues and refreshes the JWT; this app never creates its own JWT. It verifies user JWTs using the Supabase JWKS URL and rejects any token with `is_anonymous`. The `kid` shown in the JWKS response is only a key identifier, not a secret.
+| Dark theme |
+| :---: |
+| <img src="assets/screenshots/dark.png" width="100%" /> |
 
-## 3. Configure Vercel Environment
+## 🚀 Installation
 
-Add these variables in Vercel Project Settings:
+> Prerequisites: Node.js ≥ 20, a Supabase project, and the `ps.json` problem
+> statement data file (kept out of git — obtain it from a teammate).
 
-```text
-DATABASE_URL=<Supabase transaction pooler connection string>
-SUPABASE_DB_CA_CERT=<absolute path to Supabase root CA cert on the server>
-SUPABASE_URL=https://<project-ref>.supabase.co
-SUPABASE_PUBLISHABLE_KEY=<publishable key>
-APP_ORIGIN=https://sih.saireddy.dev
+```bash
+git clone https://github.com/Vigneshrdy/sih-ps.git
+cd sih-ps
+npm install
 ```
 
-Teams are created at runtime, so there are no shared group secrets to configure. The refresh token is opaque, stored in a secure HTTP-only cookie, hashed in Postgres, and replaced after every refresh. Keep any `service_role` or `sb_secret_*` key out of the browser, GitHub, and public Vercel variables.
+### Import the data
 
-Production now refuses to connect to Postgres without a verified CA. Set either `SUPABASE_DB_CA_CERT` to a readable certificate path or `SUPABASE_DB_CA_CERT_PEM` to the PEM contents.
+1. Open your Supabase project and run [`supabase/schema.sql`](supabase/schema.sql) in **SQL Editor**.
+2. In **Project Settings → Database**, copy the **Transaction pooler** connection string (port `6543`).
+3. Create a local `.env` from [`.env.example`](.env.example) and set `DATABASE_URL`.
+4. Place `ps.json` in the repo root — it is already excluded by `.gitignore`.
+5. Run:
 
-## 4. Deploy to Vercel
+```bash
+npm run import:data
+```
 
-1. Push the project without `.env` and `ps.json`.
-2. Import the repository into Vercel.
-3. Add all variables above to Production and Preview environments as needed.
-4. Deploy and connect the custom domain.
-5. Set `APP_ORIGIN=https://sih.saireddy.dev`, then redeploy.
+The import applies the schema and uploads all records as private Postgres rows. After a successful import, `ps.json` is never needed by Vercel.
 
-## 5. Put Cloudflare in Front
+### Configure Supabase Auth
 
-Proxy the domain through Cloudflare and set SSL/TLS mode to **Full (strict)**. Add WAF rate-limit rules at minimum:
+1. In **Authentication → Providers**, enable **Email**.
+2. Disable **Anonymous Sign-Ins** — the app rejects anonymous tokens.
+3. Decide on **Confirm email**:
+   - **Off** (fastest for a hackathon): signup returns a session and the user lands on the desk immediately.
+   - **On**: signup returns `202` and the UI asks the user to confirm, then log in. Both paths are handled.
+4. In **Authentication → Bot and Abuse Protection**, leave CAPTCHA **disabled** — the browser sends no captcha token, so an enabled CAPTCHA rejects every sign-in.
 
-| Endpoint | Suggested limit | Action |
-| --- | ---: | --- |
-| `POST /api/auth` | 10 requests/IP/10 minutes | Managed Challenge |
-| `POST /api/team` | 5 requests/IP/15 minutes | Block for 1 hour |
-| `GET /api/problems/*` | 60 requests/IP/minute | Managed Challenge |
-| `POST /api/comments*` | 10 requests/IP/minute | Block for 10 minutes |
+## 💻 Usage
 
-Also enable Cloudflare Bot Fight Mode. Every route additionally rate-limits per account in Postgres, so changing IP alone does not bypass the limits.
+```bash
+npm run dev        # local dev server at http://localhost:3000
+```
 
-## Routes
+Alias: `npm start` does the same. PORT is honored (`PORT=4000 npm run dev`).
+
+`scripts/dev.js` serves the static files and routes `/api/*` to the same handlers Vercel runs, including the `/problem-statements/:id` rewrite, and logs every API request with its status. It adds `http://localhost:3000` to `APP_ORIGIN` for the duration of the process so the origin check passes.
+
+Run the checks:
+
+```bash
+npm run check     # offline checks (team rules + guards)
+npm run check:e2e # full end-to-end flow (needs dev server + .env)
+```
+
+### Routes
 
 | Path | View |
 | --- | --- |
@@ -92,68 +123,66 @@ Also enable Cloudflare Bot Fight Mode. Every route additionally rate-limits per 
 
 `vercel.json` rewrites `/problem-statements/*` to the app shell. A signed-out visitor opening a statement URL directly sees the login screen; after signing in, that statement opens rather than the bare list.
 
-## Filters
+## ⚙️ Configuration
 
-The browser supports server-side search and filtering by theme, organization, category, dataset availability, starred items, hidden rejected items, and serial-number range. Search accepts both full PS ids like `SIH26011` and numeric forms like `26011`.
+| Variable | Description | Required |
+| --- | --- | --- |
+| `DATABASE_URL` | Supabase transaction pooler connection string (port 6543) | Yes |
+| `SUPABASE_URL` | `https://<project-ref>.supabase.co` | Yes |
+| `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (server-side only) | Yes |
+| `APP_ORIGIN` | Allowed origin(s), comma-separated | Production |
+| `SUPABASE_DB_CA_CERT` | Absolute path to Supabase root CA cert | Production |
+| `SUPABASE_DB_CA_CERT_PEM` | PEM contents of the CA cert (alternative to the above) | Production |
 
-## Problem Statement Views
+Production refuses to connect to Postgres without a verified CA. Keep any `service_role` or `sb_secret_*` key out of the browser, GitHub, and public Vercel variables.
 
-Cards show a two-line preview, clamped with `-webkit-line-clamp`. The whole card is a link — click the title, the description, anywhere on the card, or **Read full statement →**, or focus it and press Enter.
+## 🌐 Deployment
 
-The full view is a page, not a modal, so nothing constrains its height. It renders the decoded summary, why it matters, background, the verbatim official description, expected-solution bullets, pain points, competitive landscape, the 36-hour build plan, evaluator questions, the evaluation scorecard, SWOT, the dataset link, your personal review state, private notes, team votes, and team notes. Long descriptions keep their paragraphs and lettered lists via `white-space: pre-wrap` rather than injected markup. `scripts/test-team.js` asserts that no `.detail-*` rule introduces `line-clamp`, `overflow: hidden`, or a `max-height`.
+1. Push the project without `.env` and `ps.json` (`git ls-files ps.json` must print nothing).
+2. Import the repository into Vercel.
+3. Add all environment variables to Production and Preview environments.
+4. Deploy and connect the custom domain.
+5. Set `APP_ORIGIN` to the final domain, then redeploy.
 
-## Teams, Notes, Reviews, and Compare
+### Put Cloudflare in front
 
-Once signed in, the team dialog offers two actions:
+Proxy the domain through Cloudflare with SSL/TLS mode **Full (strict)**. Minimum WAF rate-limit rules:
 
-- **Create team** — team name, team password, and team lead name. The name must be unique across the deployment (case-insensitive); the password is salted and scrypt-hashed. The creator is seated first and flagged as the team lead.
-- **Join team** — the same team name and password, plus the member's own name, shown beside their team notes.
+| Endpoint | Suggested limit | Action |
+| --- | ---: | --- |
+| `POST /api/auth` | 10 requests/IP/10 minutes | Managed Challenge |
+| `POST /api/team` | 5 requests/IP/15 minutes | Block for 1 hour |
+| `GET /api/problems/*` | 60 requests/IP/minute | Managed Challenge |
+| `POST /api/comments*` | 10 requests/IP/minute | Block for 10 minutes |
 
-A team holds **6 members including the team lead**, so 5 more can join after the lead. The dialog lists the roster with a **Team Lead** badge, shows `4 / 6 Members`, and displays *"Team is full — maximum 6 members allowed."* once full. A member belongs to one team at a time and can leave to switch.
+Also enable Bot Fight Mode. Every route additionally rate-limits per account in Postgres, so changing IP alone does not bypass the limits.
 
-Seats are numbered 1 to 6 and a joiner takes the **lowest free** seat, so a seat given up by someone who left is reused rather than lost. When the lead leaves, the remaining member with the lowest seat inherits the role (the team is never leaderless); when the last member leaves, the team row is deleted rather than left behind as an empty team someone could join.
+## 🔒 Security Model
 
-Team notes are stored per team id and visible to that team only. Deleting a team cascades its memberships but leaves its historical team notes in Postgres under the old team id.
+`ps.json` must never be deployed or committed. Browsers can only request:
 
-Each signed-in user also has a private per-problem review state stored server-side:
+- 12 summary records per list request
+- One complete statement per detail request
+- At most 60 distinct complete statements per seven-day account
+- Comments belonging to the joined team
 
-- reading: `to read` or `read`
-- decision: `keep`, `accept`, or `reject`
-- private note: up to 4000 characters
+Every API route requires a verified Supabase access token; a logged-out caller gets `401` and no data. This slows and detects bulk collection but cannot make publicly displayed information impossible to copy — Cloudflare rate limits and bot management are still required in front of Vercel. Details on where enforcement lives, and why RLS is not the control here, are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security-model).
 
-Team members can also vote `yes`, `maybe`, or `no` on each problem statement. The detail page shows team vote totals.
+## 🤝 Contributing
 
-The list page includes:
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before opening a PR.
 
-- review badges on cards
-- a summary bar for accepted / keep / rejected / to-read / read counts
-- a review board grouped by status
-- compare selection for up to 4 problem statements
-- markdown export of the current review board
+## 👥 Contributors
 
-## Running It Locally
+- **[Vignesh Reddy](https://github.com/Vigneshrdy)** — original author, upstream maintainer
+- **[DeadIndian](https://github.com/DeadIndian)** — contributor (fork: [DeadIndian/sih-ps](https://github.com/DeadIndian/sih-ps))
 
-```bash
-npm install
-node --env-file=.env scripts/dev.js     # http://localhost:3000
-```
+## 📄 License
 
-`scripts/dev.js` serves the static files and routes `/api/*` to the same handlers Vercel runs, including the `/problem-statements/:id` rewrite, and logs every API request with its status. It adds `http://localhost:3000` to `APP_ORIGIN` for the duration of the process so the origin check passes.
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
 
-Run the offline checks with:
+---
 
-```bash
-node scripts/test-team.js
-node scripts/checks/guards.mjs
-BASE_URL=http://localhost:3000 node --env-file=.env scripts/checks/e2e-flow.mjs
-```
-
-## Resilience Notes
-
-Supabase's shared transaction pooler intermittently drops a connection while the pool is still opening it. Three deliberate choices keep that from logging people out:
-
-- `lib/db.js` retries once when a query fails before reaching the server (no SQLSTATE `code` and a `Connection terminated` message). A real SQL error always carries a code and is never retried.
-- `verifyAccess` only returns `null` for a missing, malformed, or expired token. A database failure is allowed to throw, so the client sees a 500 and keeps its session instead of being told it is signed out.
-- `rotateSession` sends the new refresh cookie to the browser *before* writing to Postgres. Supabase invalidates the old token the moment it issues a new one, so persisting the cookie last would strand the session permanently whenever that write failed.
-
-On the client, only a `401` from `/api/session/refresh` sends the user back to the login screen; any other failure is retried once and then reported without dropping the session.
+<div align="center">
+<sub>Architecture notes in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)</sub>
+</div>

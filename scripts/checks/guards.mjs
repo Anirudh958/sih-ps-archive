@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { parseCookies, validOrigin } from "/home/vignesh/sih/lib/http.js";
+import { parseCookies, validOrigin } from "../../lib/http.js";
 
 // Cookie parsing: duplicates, malformed pairs, bad encoding.
 assert.equal(parseCookies({ headers: { cookie: "a=1; b=2" } }).b, "2");
@@ -19,7 +19,7 @@ process.env.APP_ORIGIN = "";
 assert.equal(validOrigin(withOrigin(undefined)), true, "unconfigured deployment still runs");
 
 // The refresh cookie must expire the legacy path too, or it can never be deleted.
-const session = fs.readFileSync("/home/vignesh/sih/lib/session.js", "utf8");
+const session = fs.readFileSync(new URL("../../lib/session.js", import.meta.url), "utf8");
 for (const fn of ["setRefreshCookie", "clearRefreshCookie"]) {
   const body = session.slice(session.indexOf(`function ${fn}`));
   assert.match(body.slice(0, 400), /LEGACY_COOKIE_PATH/, `${fn} clears the legacy cookie path`);
@@ -29,7 +29,7 @@ assert.match(session, /export async function endSessionByRefreshToken\(request, 
 assert.doesNotMatch(session, /Max-Age=0; Secure"/, "clear cookie no longer hardcodes Secure (broke local http)");
 
 // DB TLS must fail closed in production instead of silently disabling verification.
-const db = fs.readFileSync("/home/vignesh/sih/lib/db.js", "utf8");
+const db = fs.readFileSync(new URL("../../lib/db.js", import.meta.url), "utf8");
 assert.match(db, /SUPABASE_DB_CA_CERT_PEM/, "inline PEM configuration supported");
 assert.match(db, /ssl: ca \? \{ ca, rejectUnauthorized: true \} : \{ rejectUnauthorized: false \}/, "DB uses verified TLS when a CA is configured and falls back otherwise");
 

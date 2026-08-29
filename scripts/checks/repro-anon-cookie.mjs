@@ -1,6 +1,6 @@
 // Rebuild the poisoned state: anonymous Supabase session + a browse_sessions row.
 import crypto from "node:crypto";
-import { db } from "/home/vignesh/sih/lib/db.js";
+import { db } from "../../lib/db.js";
 const sql = db();
 const url = process.env.SUPABASE_URL.replace(/\/$/, "");
 const key = process.env.SUPABASE_PUBLISHABLE_KEY;

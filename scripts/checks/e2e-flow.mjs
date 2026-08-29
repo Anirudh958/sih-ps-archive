@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { db } from "/home/vignesh/sih/lib/db.js";
+import { db } from "../../lib/db.js";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3001";
 const ORIGIN = new URL(BASE_URL).origin;

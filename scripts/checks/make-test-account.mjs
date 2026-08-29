@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { db } from "/home/vignesh/sih/lib/db.js";
+import { db } from "../../lib/db.js";
 const sql = db();
 const email = `sih-diag-${crypto.randomBytes(4).toString("hex")}@sihcheck.local`;
 const rows = await sql`INSERT INTO auth.users (
