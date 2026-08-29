@@ -28,7 +28,13 @@
       ]
     },
     {
-      "source": "/(app.js|styles.css|favicon.svg|robots.txt|assets/(.*))",
+      "source": "/(app.js|styles.css|favicon.svg|robots.txt)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
       ]
