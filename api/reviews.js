@@ -30,10 +30,17 @@ export default async function handler(request, response) {
   const ids = String(request.query.ids || "").split(",").filter((id) => /^SIH\d{5}$/.test(id)).slice(0, 100);
   const sql = db();
   if (request.method === "GET" && ids.length) {
-    const rows = await sql`SELECT ps_number, reading_status, decision_status, private_note
-      FROM user_problem_reviews WHERE user_id = ${session.sessionId} AND ps_number = ANY(${ids})`;
+    const [rows, votes] = await Promise.all([
+      sql`SELECT ps_number, reading_status, decision_status, private_note
+        FROM user_problem_reviews WHERE user_id = ${session.sessionId} AND ps_number = ANY(${ids})`,
+      session.groupId
+        ? sql`SELECT ps_number, vote FROM team_problem_votes WHERE team_id = ${session.groupId} AND user_id = ${session.sessionId} AND ps_number = ANY(${ids})`
+        : Promise.resolve([]),
+    ]);
+    const byId = Object.fromEntries(rows.map((row) => [row.ps_number, reviewRow(row)]));
+    for (const vote of votes) byId[vote.ps_number] = { ...(byId[vote.ps_number] || baseReview()), vote: vote.vote };
     return json(response, 200, {
-      reviews: Object.fromEntries(rows.map((row) => [row.ps_number, reviewRow(row)])),
+      reviews: byId,
     });
   }
 

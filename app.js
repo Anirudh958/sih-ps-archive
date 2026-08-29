@@ -12,6 +12,8 @@ const state = {
   from: "",
   to: "",
   quick: "",
+  individualReview: "",
+  teamVote: "",
   team: null,
   view: "list",
   cameFromList: false,
@@ -27,7 +29,7 @@ const state = {
 const $ = (selector) => document.querySelector(selector);
 const list = $("#problem-list");
 const filters = $("#filters");
-const filterNames = { search: "Search", theme: "Theme", org: "Organization", category: "Category", from: "From PS", to: "To PS", quick: "Quick pick" };
+const filterNames = { search: "Search", theme: "Theme", org: "Organization", individualReview: "Your review", teamVote: "Your team vote", category: "Category", from: "From PS", to: "To PS", quick: "Quick pick" };
 const DETAIL_PREFIX = "/problem-statements/";
 let refreshRequest;
 let searchTimer;
@@ -98,6 +100,18 @@ function reviewBadges(id) {
 
 function decisionFilter(problem) {
   return state.quick !== "hide-rejected" || reviewState(problem.ps_number).decision !== "reject";
+}
+
+function reviewFilter(problem) {
+  const review = reviewState(problem.ps_number);
+  if (state.individualReview) {
+    const matches = state.individualReview === "to-read" || state.individualReview === "read"
+      ? review.reading === state.individualReview
+      : review.decision === state.individualReview;
+    if (!matches) return false;
+  }
+  if (state.teamVote && review.vote !== state.teamVote) return false;
+  return true;
 }
 
 async function loadReview(id) {
@@ -217,7 +231,7 @@ function populateSelect(selector, values) {
 
 function readUrl() {
   const params = new URLSearchParams(location.search);
-  ["search", "theme", "org", "category", "from", "to", "quick"].forEach((key) => {
+  ["search", "theme", "org", "individualReview", "teamVote", "category", "from", "to", "quick"].forEach((key) => {
     if (params.has(key)) state[key] = params.get(key);
   });
 }
@@ -225,7 +239,7 @@ function readUrl() {
 function syncUrl() {
   if (state.view !== "list") return;
   const params = new URLSearchParams();
-  ["search", "theme", "org", "category", "from", "to", "quick"].forEach((key) => {
+  ["search", "theme", "org", "individualReview", "teamVote", "category", "from", "to", "quick"].forEach((key) => {
     if (state[key]) params.set(key, state[key]);
   });
   history.replaceState(history.state, "", `/${params.size ? `?${params}` : ""}`);
@@ -234,6 +248,8 @@ function syncUrl() {
 function syncControls() {
   $("#search").value = state.search;
   ["theme", "org"].forEach((key) => $(`#${key}`).value = state[key]);
+  $("#individual-review").value = state.individualReview;
+  $("#team-vote").value = state.teamVote;
   $("#ps-from").value = state.from;
   $("#ps-to").value = state.to;
   document.querySelectorAll("#category-filter button").forEach((button) => button.classList.toggle("active", button.dataset.value === state.category));
@@ -299,7 +315,7 @@ async function loadProblems({ append = false } = {}) {
   try {
     const result = await api(`/api/problems?${queryString(page)}`, { signal: listRequest.signal });
     await loadReviewsForProblems(result.items.map((item) => item.ps_number));
-    const incoming = result.items.filter(decisionFilter);
+    const incoming = result.items.filter((problem) => decisionFilter(problem) && reviewFilter(problem));
     state.problems = append ? [...state.problems, ...incoming] : incoming;
     state.page = result.page;
     state.total = state.quick === "hide-rejected" ? state.problems.length : result.total;
@@ -364,9 +380,16 @@ function cardTemplate(problem) {
 }
 
 function activeFilterEntries() {
-  return ["search", "theme", "org", "category", "from", "to", "quick"]
+  return ["search", "theme", "org", "individualReview", "teamVote", "category", "from", "to", "quick"]
     .filter((key) => state[key])
-    .map((key) => [key, key === "from" ? `From ${state[key]}` : key === "to" ? `To ${state[key]}` : state[key] === "dataset" ? "Has dataset" : state[key] === "hide-rejected" ? "Hide rejected" : state[key][0].toUpperCase() + state[key].slice(1)]);
+    .map((key) => [key,
+      key === "from" ? `From ${state[key]}`
+        : key === "to" ? `To ${state[key]}`
+          : key === "dataset" ? "Has dataset"
+            : key === "hide-rejected" ? "Hide rejected"
+              : key === "individualReview" ? `Review: ${READING_STATES[state[key]] || DECISION_STATES[state[key]]}`
+                : key === "teamVote" ? `Team vote: ${VOTE_STATES[state[key]]}`
+                  : state[key][0].toUpperCase() + state[key].slice(1)]);
 }
 
 function reviewSummaryCounts() {
@@ -660,7 +683,7 @@ async function openCompareDialog() {
 
 function clearFilters() {
   clearTimeout(searchTimer);
-  Object.assign(state, { search: "", theme: "", org: "", category: "", from: "", to: "", quick: "" });
+  Object.assign(state, { search: "", theme: "", org: "", individualReview: "", teamVote: "", category: "", from: "", to: "", quick: "" });
   closeMobileFilters();
   showListLoading("Clearing filters…");
   loadProblems();
@@ -674,6 +697,7 @@ function filterChanged() {
 function bindEvents() {
   $("#search").addEventListener("input", (event) => { state.search = event.target.value; clearTimeout(searchTimer); searchTimer = setTimeout(filterChanged, 300); });
   ["theme", "org"].forEach((key) => $(`#${key}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
+  [["individual-review", "individualReview"], ["team-vote", "teamVote"]].forEach(([id, key]) => $(`#${id}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
   [["ps-from", "from"], ["ps-to", "to"]].forEach(([id, key]) => $(`#${id}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
   $("#category-filter").addEventListener("click", (event) => { const button = event.target.closest("button"); if (button) { state.category = button.dataset.value; filterChanged(); } });
   document.querySelector(".quick-picks").addEventListener("click", (event) => { const button = event.target.closest("button"); if (button) { state.quick = state.quick === button.dataset.quick ? "" : button.dataset.quick; filterChanged(); } });

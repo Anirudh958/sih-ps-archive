@@ -122,6 +122,29 @@
             <select id="org"><option value="">All organizations</option></select>
           </label>
 
+          <div class="filter-row">
+            <label class="filter-block">
+              <span class="filter-label">Your review</span>
+              <select id="individual-review">
+                <option value="">Any</option>
+                <option value="to-read">To read</option>
+                <option value="read">Read</option>
+                <option value="keep">Keep</option>
+                <option value="accept">Accept</option>
+                <option value="reject">Reject</option>
+              </select>
+            </label>
+            <label class="filter-block">
+              <span class="filter-label">Your team vote</span>
+              <select id="team-vote">
+                <option value="">Any</option>
+                <option value="yes">Yes</option>
+                <option value="maybe">Maybe</option>
+                <option value="no">No</option>
+              </select>
+            </label>
+          </div>
+
           <fieldset class="filter-block">
             <legend class="filter-label">Category</legend>
             <div class="segmented" id="category-filter">
