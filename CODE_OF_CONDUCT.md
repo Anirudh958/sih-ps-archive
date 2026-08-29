@@ -61,7 +61,7 @@ further defined and clarified by project maintainers.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement by opening a
-private [GitHub security advisory](https://github.com/DeadIndian/sih-ps/security/advisories/new)
+private [GitHub security advisory](https://github.com/Vigneshrdy/sih-ps/security/advisories/new)
 or contacting a maintainer directly. All complaints will be reviewed and
 investigated promptly and fairly.
 

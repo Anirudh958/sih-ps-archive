@@ -8,15 +8,15 @@ A Vercel-hosted problem-statement desk with Supabase email/password Auth, rotati
 refresh tokens, server-side filtering, pagination, Supabase Postgres storage,
 six-member teams, and private per-team comments.
 
-[![License](https://img.shields.io/github/license/DeadIndian/sih-ps?style=flat-square)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/DeadIndian/sih-ps?style=flat-square)](https://github.com/DeadIndian/sih-ps/stargazers)
+[![License](https://img.shields.io/github/license/Vigneshrdy/sih-ps?style=flat-square)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/Vigneshrdy/sih-ps?style=flat-square)](https://github.com/Vigneshrdy/sih-ps/stargazers)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 ![Made with Node.js](https://img.shields.io/badge/made%20with-Node.js-blue?style=flat-square)
 
 [Getting Started](#-installation) ·
 [Architecture](docs/ARCHITECTURE.md) ·
-[Report Bug](https://github.com/DeadIndian/sih-ps/issues) ·
-[Request Feature](https://github.com/DeadIndian/sih-ps/issues)
+[Report Bug](https://github.com/Vigneshrdy/sih-ps/issues) ·
+[Request Feature](https://github.com/Vigneshrdy/sih-ps/issues)
 
 <img src="assets/screenshots/hero.png" alt="SIH Selection Desk screenshot" width="80%" />
 
@@ -59,13 +59,17 @@ six-member teams, and private per-team comments.
 | :---: | :---: |
 | <img src="assets/screenshots/team.png" width="100%" /> | <img src="assets/screenshots/board.png" width="100%" /> |
 
+| Dark theme |
+| :---: |
+| <img src="assets/screenshots/dark.png" width="100%" /> |
+
 ## 🚀 Installation
 
 > Prerequisites: Node.js ≥ 20, a Supabase project, and the `ps.json` problem
 > statement data file (kept out of git — obtain it from a teammate).
 
 ```bash
-git clone https://github.com/DeadIndian/sih-ps.git
+git clone https://github.com/Vigneshrdy/sih-ps.git
 cd sih-ps
 npm install
 ```
@@ -96,17 +100,18 @@ The import applies the schema and uploads all records as private Postgres rows. 
 ## 💻 Usage
 
 ```bash
-node --env-file=.env scripts/dev.js   # http://localhost:3000
+npm run dev        # local dev server at http://localhost:3000
 ```
+
+Alias: `npm start` does the same. PORT is honored (`PORT=4000 npm run dev`).
 
 `scripts/dev.js` serves the static files and routes `/api/*` to the same handlers Vercel runs, including the `/problem-statements/:id` rewrite, and logs every API request with its status. It adds `http://localhost:3000` to `APP_ORIGIN` for the duration of the process so the origin check passes.
 
-Run the offline checks:
+Run the checks:
 
 ```bash
-node scripts/test-team.js
-node scripts/checks/guards.mjs
-BASE_URL=http://localhost:3000 node --env-file=.env scripts/checks/e2e-flow.mjs
+npm run check     # offline checks (team rules + guards)
+npm run check:e2e # full end-to-end flow (needs dev server + .env)
 ```
 
 ### Routes
@@ -166,6 +171,11 @@ Every API route requires a verified Supabase access token; a logged-out caller g
 ## 🤝 Contributing
 
 Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before opening a PR.
+
+## 👥 Contributors
+
+- **[Vignesh Reddy](https://github.com/Vigneshrdy)** — original author, upstream maintainer
+- **[DeadIndian](https://github.com/DeadIndian)** — contributor (fork: [DeadIndian/sih-ps](https://github.com/DeadIndian/sih-ps))
 
 ## 📄 License
 

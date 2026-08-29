@@ -15,14 +15,22 @@
     <meta name="twitter:description" content="Search, filter, compare, and shortlist SIH 2026 problem statements." />
     <meta name="twitter:image" content="/og-image.svg" />
     <title>SIH 2026 Selection Desk</title>
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/assets/logo.jpg" type="image/jpeg" />
+    <link rel="apple-touch-icon" href="/assets/logo.jpg" />
     <link rel="stylesheet" href="/styles.css" />
+    <script>
+      // Applies the saved theme before first paint to avoid a flash.
+      if (localStorage.getItem("sih-theme") === "dark" ||
+          (!localStorage.getItem("sih-theme") && matchMedia("(prefers-color-scheme: dark)").matches)) {
+        document.documentElement.classList.add("dark");
+      }
+    </script>
     <script src="/app.js" defer></script>
   </head>
   <body>
     <section class="access-gate access-gate-loading" id="boot-screen" aria-labelledby="boot-title">
       <div class="gate-panel">
-        <span class="brand-mark">26</span>
+        <img class="brand-mark" src="/assets/logo.jpg" alt="SIH Selection Desk logo" />
         <p class="eyebrow">SIH 2026 Selection Desk</p>
         <h1 id="boot-title">Restoring your<br />selection desk.</h1>
         <p>Checking your session and loading the latest state.</p>
@@ -31,7 +39,7 @@
 
     <section class="access-gate" id="access-gate" aria-labelledby="access-title" hidden>
       <div class="gate-panel">
-        <span class="brand-mark">26</span>
+        <img class="brand-mark" src="/assets/logo.jpg" alt="SIH Selection Desk logo" />
         <p class="eyebrow">SIH 2026 Selection Desk</p>
         <h1 id="access-title">Sign in to open<br />the selection desk.</h1>
         <p>Create an account or sign in to browse the SIH problem statements and shortlist with your team.</p>
@@ -59,10 +67,17 @@
 
     <header class="masthead">
       <a class="brand" href="/" aria-label="SIH Selection Desk home">
-        <span class="brand-mark">26</span>
+        <img class="brand-mark" src="/assets/logo.jpg" alt="SIH Selection Desk logo" />
         <span><strong>SIH</strong><small>Selection Desk</small></span>
       </a>
-      <div class="deadline"><span>Submission deadline</span><strong>20 Sep 2026</strong></div>
+      <div class="masthead-actions">
+        <div class="deadline"><span>Submission deadline</span><strong>20 Sep 2026</strong></div>
+        <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme" title="Toggle dark theme">
+          <svg class="sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"></path></svg>
+          <svg class="moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z"></path></svg>
+        </button>
+        <button class="icon-button" id="help-button" type="button" aria-label="Show quick tour" title="Quick tour">?</button>
+      </div>
     </header>
 
     <main>
@@ -167,8 +182,8 @@
               <p><strong id="result-count">—</strong> matches <span id="active-summary"></span></p>
             </div>
             <div class="toolbar-actions">
-              <button class="text-button" id="open-compare" type="button" hidden>Compare selected (<span id="compare-count">0</span>)</button>
-              <button class="text-button" id="export-board" type="button">Export board</button>
+              <button class="text-button" id="open-compare" type="button" title="Compare the statements you ticked, side by side" hidden>Compare selected (<span id="compare-count">0</span>)</button>
+              <button class="text-button" id="export-board" type="button" title="Download your review board as markdown">Export board</button>
               <button class="mobile-filter-button" id="mobile-filter-button" type="button">Filters <span id="filter-badge">0</span></button>
             </div>
           </div>
@@ -189,8 +204,36 @@
       <article class="detail-view" id="detail-view" hidden aria-labelledby="detail-title">
         <div class="detail-bar">
           <button class="text-button" id="detail-back" type="button">← Back to all statements</button>
-          <div>
+          <div class="detail-nav">
+            <button class="icon-button" id="detail-prev" type="button" aria-label="Previous statement" title="Previous (←)">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>
+            </button>
             <span id="detail-number"></span>
+            <button class="icon-button" id="detail-next" type="button" aria-label="Next statement" title="Next (→)">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg>
+            </button>
+            <label class="detail-scope" title="Walk through only these statements with ← / →">
+              <span>Browsing</span>
+              <select id="detail-scope">
+                <option value="all">All loaded</option>
+                <option value="to-read">To read</option>
+                <option value="keep">Keep</option>
+                <option value="accept">Accept</option>
+                <option value="starred">Starred</option>
+              </select>
+            </label>
+          </div>
+          <div class="detail-tools">
+            <button class="text-button" id="copy-md" type="button" title="Copy this statement as markdown">Copy MD</button>
+            <details class="ask-menu" id="ask-menu">
+              <summary title="Open this statement in an AI chat with a prompt ready">Ask AI ▾</summary>
+              <div class="ask-menu-list">
+                <button type="button" data-ask="chatgpt">ChatGPT ↗</button>
+                <button type="button" data-ask="claude">Claude ↗</button>
+                <button type="button" data-ask="gemini">Gemini ↗</button>
+                <button type="button" data-ask="perplexity">Perplexity ↗</button>
+              </div>
+            </details>
             <button class="icon-button" id="detail-star" type="button" aria-label="Star this problem statement" title="Star problem statement">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"></path></svg>
             </button>
@@ -199,6 +242,19 @@
         <div class="detail-body" id="detail-body"></div>
       </article>
     </main>
+
+    <div class="tour-backdrop" id="tour-backdrop" hidden>
+      <div class="tour-spotlight" id="tour-spotlight"></div>
+      <div class="tour-card" id="tour-card" role="dialog" aria-label="Quick tour">
+        <p class="eyebrow" id="tour-step-label"></p>
+        <h2 id="tour-title"></h2>
+        <p id="tour-text"></p>
+        <div class="tour-actions">
+          <button class="text-button" id="tour-skip" type="button">Skip</button>
+          <button class="primary-button" id="tour-next" type="button">Next</button>
+        </div>
+      </div>
+    </div>
 
     <dialog id="group-dialog" aria-labelledby="group-dialog-title">
       <div class="group-form">

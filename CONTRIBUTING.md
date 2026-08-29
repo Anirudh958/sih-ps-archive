@@ -5,10 +5,11 @@ Thanks for your interest in contributing.
 ## Getting set up
 
 ```bash
-git clone https://github.com/DeadIndian/sih-ps.git
+git clone https://github.com/Vigneshrdy/sih-ps.git
 cd sih-ps
 npm install
 cp .env.example .env    # fill in your Supabase credentials
+npm run dev             # http://localhost:3000
 ```
 
 Ask a maintainer for the `ps.json` data file if you need a populated database,
@@ -17,7 +18,7 @@ then run `npm run import:data`.
 ## Development
 
 ```bash
-node --env-file=.env scripts/dev.js   # local server at http://localhost:3000
+npm run dev   # local server at http://localhost:3000
 ```
 
 The dev server mimics the Vercel runtime and routes `/api/*` to the real
@@ -28,9 +29,8 @@ handlers in `api/`.
 All checks must pass:
 
 ```bash
-node scripts/test-team.js
-node scripts/checks/guards.mjs
-BASE_URL=http://localhost:3000 node --env-file=.env scripts/checks/e2e-flow.mjs
+npm run check     # offline checks
+npm run check:e2e # end-to-end (needs the dev server running)
 ```
 
 Run `git ls-files ps.json` — it must print nothing. `ps.json` must never be
@@ -53,6 +53,6 @@ committed or deployed.
 
 ## Reporting bugs
 
-Open an [issue](https://github.com/DeadIndian/sih-ps/issues) with the exact
+Open an [issue](https://github.com/Vigneshrdy/sih-ps/issues) with the exact
 command or URL, expected behavior, and actual behavior. Never paste secrets,
 `.env` contents, or `ps.json` data into an issue.

@@ -22,6 +22,7 @@ const state = {
   filtersLoaded: false,
   reviewCache: {},
   compare: new Set(JSON.parse(localStorage.getItem("sih-compare") || "[]")),
+  browseScope: "all",
   boardCollapsed: JSON.parse(localStorage.getItem("sih-board-collapsed") || "{}"),
   starred: new Set(JSON.parse(localStorage.getItem("sih-starred") || "[]")),
 };
@@ -512,23 +513,63 @@ function showListError(message) {
   list.innerHTML = `<div class="empty-state"><h2>Could not load statements</h2><p>${escapeHtml(message)}</p></div>`;
 }
 
-function listSection(title, items) {
+function listSection(title, items, open = false) {
   if (!items?.length) return "";
-  return `<section class="detail-section"><h3>${escapeHtml(title)}</h3><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>`;
+  return collapseSection(title, `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`, open);
 }
 
 // pre-wrap keeps the source paragraphs, line breaks and lettered lists intact
 // without turning the text into markup.
-function proseSection(title, body) {
-  return body ? `<section class="detail-section"><h3>${escapeHtml(title)}</h3><p class="detail-prose">${escapeHtml(body)}</p></section>` : "";
+function proseSection(title, body, open = false) {
+  return body ? collapseSection(title, `<p class="detail-prose">${escapeHtml(body)}</p>`, open) : "";
+}
+
+// The detail page shows the statement itself and folds everything else behind
+// expandable bars, so a first-time reader is not staring at 15 sections.
+function collapseSection(title, inner, open = false) {
+  return `<details class="detail-section detail-collapse"${open ? " open" : ""}><summary><h3>${escapeHtml(title)}</h3><span class="collapse-hint" aria-hidden="true"></span></summary><div class="collapse-body">${inner}</div></details>`;
 }
 
 function scorecardSection(scorecard) {
   const rows = Object.values(scorecard || {}).filter((row) => row?.label);
   if (!rows.length) return "";
-  return `<section class="detail-section"><h3>Evaluation scorecard</h3><dl class="scorecard">${rows.map((row) => `
-    <div><dt>${escapeHtml(row.label)}</dt><dd><strong>${escapeHtml(row.tier || "—")}</strong>${row.note ? `<span>${escapeHtml(row.note)}</span>` : ""}</dd></div>`).join("")}</dl></section>`;
+  return collapseSection("Evaluation scorecard", `<dl class="scorecard">${rows.map((row) => `
+    <div><dt>${escapeHtml(row.label)}</dt><dd><strong>${escapeHtml(row.tier || "—")}</strong>${row.note ? `<span>${escapeHtml(row.note)}</span>` : ""}</dd></div>`).join("")}</dl>`);
 }
+
+function problemToMarkdown(problem) {
+  const bullets = (items) => (items || []).map((item) => `- ${item}`).join("\n");
+  const parts = [
+    `# ${problem.ps_number} — ${problem.title}`, "",
+    `**Organization:** ${problem.org}  `,
+    `**Category:** ${problem.category} · **Theme:** ${problem.theme}`, "",
+    problem.problem_decode?.plain_summary ? `## Summary\n\n${problem.problem_decode.plain_summary}` : "",
+    problem.problem_decode?.why_it_matters ? `## Why it matters\n\n${problem.problem_decode.why_it_matters}` : "",
+    problem.background ? `## Background\n\n${problem.background}` : "",
+    problem.description ? `## Official description\n\n${problem.description}` : "",
+    problem.expected_solution_bullets?.length ? `## Expected solution\n\n${bullets(problem.expected_solution_bullets)}` : "",
+    problem.problem_decode?.pain_points?.length ? `## Pain points\n\n${bullets(problem.problem_decode.pain_points)}` : "",
+    problem.competitive_landscape ? `## Competitive landscape\n\n**${problem.competitive_landscape.tier || "—"} competition.** ${problem.competitive_landscape.reason || ""}\n\n${problem.competitive_landscape.differentiation_angle || ""}` : "",
+    problem.build_plan_36h ? `## 36-hour build plan\n\n${Object.values(problem.build_plan_36h).map((stage) => `**${stage.label}**\n${bullets(stage.items)}`).join("\n\n")}` : "",
+    problem.evaluator_questions?.length ? `## Questions evaluators may ask\n\n${bullets(problem.evaluator_questions)}` : "",
+    problem.dataset_link ? `## Dataset\n\n${problem.dataset_link}` : "",
+  ];
+  return parts.filter(Boolean).join("\n\n").replace(/\n{3,}/g, "\n\n");
+}
+
+function aiPrompt(problem) {
+  const md = problemToMarkdown(problem);
+  // URL length caps: keep the prompt well under the ~8k most chat UIs accept.
+  const body = md.length > 4000 ? `${md.slice(0, 4000)}\n\n…(truncated — copy the full statement with "Copy MD")` : md;
+  return `We are picking a problem statement for Smart India Hackathon. Analyze this problem statement for feasibility in 36 hours, competition risk, and how a strong team should approach it:\n\n${body}`;
+}
+
+const AI_TARGETS = {
+  chatgpt: (prompt) => `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`,
+  claude: (prompt) => `https://claude.ai/new?q=${encodeURIComponent(prompt)}`,
+  perplexity: (prompt) => `https://www.perplexity.ai/search?q=${encodeURIComponent(prompt)}`,
+  gemini: () => "https://gemini.google.com/app",
+};
 
 function detailTemplate(problem) {
   const plan = Object.values(problem.build_plan_36h || {}).map((stage) => `<div class="plan-stage"><h4>${escapeHtml(stage.label)}</h4><ul>${(stage.items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`).join("");
@@ -537,13 +578,15 @@ function detailTemplate(problem) {
     <h2 id="detail-title">${escapeHtml(problem.title)}</h2>
     <div class="detail-tags"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span></div>
     <div class="detail-grid"><div>
-      ${proseSection("Problem decoded", problem.problem_decode?.plain_summary || problem.description)}
+      ${proseSection("Problem decoded", problem.problem_decode?.plain_summary || problem.description, true)}
+      ${proseSection("Official description", problem.description, true)}
       ${proseSection("Why it matters", problem.problem_decode?.why_it_matters)}
       ${proseSection("Background", problem.background)}
-      ${proseSection("Official description", problem.description)}
-      ${listSection("Expected solution", problem.expected_solution_bullets)}${listSection("Pain points", problem.problem_decode?.pain_points)}
-      <section class="detail-section"><h3>Competitive landscape</h3><p><strong>${escapeHtml(problem.competitive_landscape?.tier || "—")} competition.</strong> ${escapeHtml(problem.competitive_landscape?.reason)}</p><p>${escapeHtml(problem.competitive_landscape?.differentiation_angle)}</p></section>
-      <section class="detail-section"><h3>36-hour build plan</h3>${plan}</section>${listSection("Questions evaluators may ask", problem.evaluator_questions)}
+      ${listSection("Expected solution", problem.expected_solution_bullets)}
+      ${listSection("Pain points", problem.problem_decode?.pain_points)}
+      ${collapseSection("Competitive landscape", `<p><strong>${escapeHtml(problem.competitive_landscape?.tier || "—")} competition.</strong> ${escapeHtml(problem.competitive_landscape?.reason || "")}</p><p>${escapeHtml(problem.competitive_landscape?.differentiation_angle || "")}</p>`)}
+      ${collapseSection("36-hour build plan", plan)}
+      ${listSection("Questions evaluators may ask", problem.evaluator_questions)}
       ${scorecardSection(problem.evaluation_scorecard)}
     </div><aside>
       <section class="detail-section review-panel"><h3>Your review</h3>
@@ -581,6 +624,7 @@ function showList() {
   setDocumentTitle("");
   $("#list-view").hidden = false;
   $("#detail-view").hidden = true;
+  if (!localStorage.getItem("sih-tour-done") && state.listLoaded) setTimeout(startTour, 600);
   if (!state.listLoaded) {
     list.hidden = false;
     $("#empty-state").hidden = true;
@@ -601,6 +645,7 @@ function renderCurrentProblem() {
     $("#comment-form").addEventListener("submit", (event) => submitComment(event, state.currentProblem.ps_number));
     watchCommentsLoad(state.currentProblem.ps_number);
   }
+  syncDetailNav();
 }
 
 async function showDetail(id) {
@@ -664,6 +709,32 @@ function toggleCompare(id) {
   if (state.listLoaded) render();
 }
 
+// The statement sequence ← / → walks, optionally narrowed to one review state.
+function browseSequence() {
+  const all = state.problems;
+  if (state.browseScope === "all" || state.browseScope === "starred") {
+    return state.browseScope === "starred" ? all.filter((p) => state.starred.has(p.ps_number)) : all;
+  }
+  return all.filter((p) => reviewState(p.ps_number)[state.browseScope === "to-read" ? "reading" : "decision"] === state.browseScope);
+}
+
+function syncDetailNav() {
+  if (state.view !== "detail") return;
+  const sequence = browseSequence();
+  const index = sequence.findIndex((p) => p.ps_number === state.currentProblem?.ps_number);
+  $("#detail-scope").value = state.browseScope;
+  $("#detail-prev").disabled = index <= 0;
+  $("#detail-next").disabled = index === -1 || index >= sequence.length - 1;
+}
+
+function stepStatement(direction) {
+  const sequence = browseSequence();
+  const index = sequence.findIndex((p) => p.ps_number === state.currentProblem?.ps_number);
+  const target = index === -1 ? (direction > 0 ? 0 : sequence.length - 1) : index + direction;
+  if (target < 0 || target >= sequence.length) return;
+  navigate(`/problem-statements/${encodeURIComponent(sequence[target].ps_number)}`);
+}
+
 async function openCompareDialog() {
   const ids = compareIds();
   if (ids.length < 2) return toast("Pick at least 2 problem statements to compare.", "error");
@@ -695,6 +766,43 @@ function filterChanged() {
 }
 
 function bindEvents() {
+  $("#theme-toggle").addEventListener("click", () => {
+    const dark = document.documentElement.classList.toggle("dark");
+    localStorage.setItem("sih-theme", dark ? "dark" : "light");
+    document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#10161f" : "#194fd1");
+  });
+  $("#help-button").addEventListener("click", startTour);
+  $("#tour-skip").addEventListener("click", endTour);
+  $("#tour-next").addEventListener("click", nextTourStep);
+  $("#copy-md").addEventListener("click", async () => {
+    if (!state.currentProblem) return;
+    try {
+      await navigator.clipboard.writeText(problemToMarkdown(state.currentProblem));
+      toast("Statement copied as markdown.");
+    } catch {
+      toast("Could not access the clipboard.", "error");
+    }
+  });
+  $("#ask-menu").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-ask]");
+    if (!button || !state.currentProblem) return;
+    const target = AI_TARGETS[button.dataset.ask];
+    const prompt = aiPrompt(state.currentProblem);
+    if (button.dataset.ask === "gemini") {
+      // Gemini's web UI has no prompt URL parameter — copy it and open a blank chat.
+      navigator.clipboard.writeText(prompt).then(() => toast("Prompt copied — paste it into Gemini.")).catch(() => {});
+    }
+    window.open(target(prompt), "_blank", "noreferrer noopener");
+    $("#ask-menu").removeAttribute("open");
+  });
+  $("#detail-prev").addEventListener("click", () => stepStatement(-1));
+  $("#detail-next").addEventListener("click", () => stepStatement(1));
+  $("#detail-scope").addEventListener("change", (event) => { state.browseScope = event.target.value; syncDetailNav(); });
+  document.addEventListener("keydown", (event) => {
+    if (state.view !== "detail" || event.target.matches("input, textarea, select")) return;
+    if (event.key === "ArrowLeft") stepStatement(-1);
+    if (event.key === "ArrowRight") stepStatement(1);
+  });
   $("#search").addEventListener("input", (event) => { state.search = event.target.value; clearTimeout(searchTimer); searchTimer = setTimeout(filterChanged, 300); });
   ["theme", "org"].forEach((key) => $(`#${key}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
   [["individual-review", "individualReview"], ["team-vote", "teamVote"]].forEach(([id, key]) => $(`#${id}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
@@ -1025,6 +1133,75 @@ function setAuthMode(mode) {
   $("#auth-password").setAttribute("autocomplete", mode === "signup" ? "new-password" : "current-password");
   $("#gate-status").textContent = mode === "signup" ? "Passwords must be at least 8 characters." : "";
   $("#gate-status").classList.remove("error");
+}
+
+// Spotlight tour: a cutout highlights one element at a time with a small card
+// beside it. Runs once for a new browser; the "?" button in the masthead restarts it.
+const TOUR_STEPS = [
+  { selector: "#search", title: "Search everything", text: "Type a keyword, an organization, or a PS number like SIH26011. Press / from anywhere to jump here." },
+  { selector: ".quick-picks", title: "Quick picks", text: "One-tap filters: statements that have a dataset, ones you starred, or hide the ones you already rejected." },
+  { selector: "#problem-list .problem-card", title: "Open a statement", text: "Click anywhere on a card to read the full problem statement. The star shortlists it; Compare queues up to 4 side by side." },
+  { selector: "#export-board", title: "Your review board", text: "As you mark statements Keep / Accept / Reject, they collect on a board you can export as markdown." },
+  { selector: "#join-group-button", title: "Team up", text: "Create or join a team of up to 6 to vote on statements and share team notes." },
+];
+
+let tourIndex = 0;
+let tourTarget = null;
+
+// Reposition on scroll/resize so the spotlight tracks the element it highlights.
+function trackTourStep() {
+  if (tourTarget) positionTourStep(tourTarget);
+}
+
+function startTour() {
+  if (state.view !== "list" || !state.listLoaded || !$("#problem-list .problem-card")) return;
+  tourIndex = 0;
+  $("#tour-backdrop").hidden = false;
+  window.addEventListener("scroll", trackTourStep, { passive: true });
+  window.addEventListener("resize", trackTourStep);
+  showTourStep();
+}
+
+function showTourStep() {
+  const step = TOUR_STEPS[tourIndex];
+  tourTarget = document.querySelector(step.selector);
+  if (!tourTarget) return endTour();
+  tourTarget.scrollIntoView({ block: "center" });
+  positionTourStep(tourTarget);
+  $("#tour-step-label").textContent = `Step ${tourIndex + 1} of ${TOUR_STEPS.length}`;
+  $("#tour-title").textContent = step.title;
+  $("#tour-text").textContent = step.text;
+  $("#tour-next").textContent = tourIndex === TOUR_STEPS.length - 1 ? "Done" : "Next";
+}
+
+// All positioning derives from the live DOM rect of the target element.
+function positionTourStep(target) {
+  const rect = target.getBoundingClientRect();
+  const spotlight = $("#tour-spotlight");
+  spotlight.style.left = `${rect.left - 6}px`;
+  spotlight.style.top = `${rect.top - 6}px`;
+  spotlight.style.width = `${rect.width + 12}px`;
+  spotlight.style.height = `${rect.height + 12}px`;
+  const card = $("#tour-card");
+  const cardHeight = card.offsetHeight || 200;
+  card.style.left = `${Math.min(Math.max(16, rect.left), window.innerWidth - 336)}px`;
+  // Prefer below the target; flip above it when that would run off the viewport.
+  card.style.top = rect.bottom + 18 + cardHeight > window.innerHeight
+    ? `${Math.max(16, rect.top - cardHeight - 18)}px`
+    : `${rect.bottom + 18}px`;
+}
+
+function nextTourStep() {
+  if (++tourIndex >= TOUR_STEPS.length) return endTour();
+  showTourStep();
+}
+
+function endTour() {
+  tourTarget = null;
+  window.removeEventListener("scroll", trackTourStep);
+  window.removeEventListener("resize", trackTourStep);
+  $("#tour-backdrop").hidden = true;
+  localStorage.setItem("sih-tour-done", "1");
 }
 
 function showGate(message = "") {
