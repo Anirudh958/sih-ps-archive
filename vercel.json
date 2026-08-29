@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
+  "regions": ["sin1"],
   "rewrites": [
     { "source": "/problem-statements", "destination": "/" },
     { "source": "/problem-statements/(.*)", "destination": "/" }
@@ -24,6 +25,12 @@
       "source": "/api/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "private, no-store, max-age=0" }
+      ]
+    },
+    {
+      "source": "/(app.js|styles.css|favicon.svg|robots.txt|assets/(.*))",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
       ]
     }
   ]

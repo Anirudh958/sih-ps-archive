@@ -315,13 +315,17 @@ async function loadProblems({ append = false } = {}) {
   $("#load-more").disabled = true;
   try {
     const result = await api(`/api/problems?${queryString(page)}`, { signal: listRequest.signal });
-    await loadReviewsForProblems(result.items.map((item) => item.ps_number));
     const incoming = result.items.filter((problem) => decisionFilter(problem) && reviewFilter(problem));
     state.problems = append ? [...state.problems, ...incoming] : incoming;
     state.page = result.page;
     state.total = state.quick === "hide-rejected" ? state.problems.length : result.total;
     state.hasMore = result.hasMore;
     state.listLoaded = true;
+    // Render the list right away; review badges and the local decision/review
+    // filters apply once the reviews request lands.
+    render();
+    await loadReviewsForProblems(result.items.map((item) => item.ps_number));
+    state.problems = state.problems.filter((problem) => decisionFilter(problem) && reviewFilter(problem));
     render();
   } catch (error) {
     if (error.name !== "AbortError") showListError(error.message);
