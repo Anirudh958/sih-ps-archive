@@ -270,6 +270,25 @@ async function main() {
   const comments = await expectStatus(teamClients[1].request("/api/comments?ps=SIH26011", { origin: false }), 200, "teammate can read comments");
   assert.equal(comments.body.comments[0].display_name, "Owner Lead", "comment keeps the joined display name");
 
+  const reviewBefore = await expectStatus(ownerClient.request("/api/reviews?ps=SIH26011", { origin: false }), 200, "review state loads");
+  assert.equal(reviewBefore.body.review.decision, "", "new review starts empty");
+  const reviewSaved = await expectStatus(ownerClient.request("/api/reviews?ps=SIH26011", {
+    method: "POST",
+    json: { reading: "read", decision: "accept", privateNote: "Best fit for our team", vote: "yes" },
+  }), 200, "review state saves");
+  assert.equal(reviewSaved.body.review.reading, "read", "reading state persists");
+  assert.equal(reviewSaved.body.review.decision, "accept", "decision state persists");
+  assert.equal(reviewSaved.body.review.privateNote, "Best fit for our team", "private note persists");
+  assert.equal(reviewSaved.body.vote, "yes", "team vote persists for the current user");
+  const voteSaved = await expectStatus(teamClients[1].request("/api/reviews?ps=SIH26011", {
+    method: "POST",
+    json: { vote: "maybe" },
+  }), 200, "second teammate vote saves");
+  assert.equal(voteSaved.body.votes.yes, 1, "team vote summary counts yes votes");
+  assert.equal(voteSaved.body.votes.maybe, 1, "team vote summary counts maybe votes");
+  const bulkReviews = await expectStatus(ownerClient.request("/api/reviews?ids=SIH26011,SIH26012", { origin: false }), 200, "bulk review lookup loads");
+  assert.equal(bulkReviews.body.reviews.SIH26011.decision, "accept", "bulk review lookup returns saved review state");
+
   await expectStatus(teamClients[2].request("/api/team", { method: "POST", json: { action: "leave" } }), 200, "member leaves team");
   const reuseClient = new Client("reuse-seat");
   await expectStatus(reuseClient.login(members[5].email), 200, "replacement member login succeeds");

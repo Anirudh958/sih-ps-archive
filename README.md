@@ -90,30 +90,46 @@ Also enable Cloudflare Bot Fight Mode. Every route additionally rate-limits per 
 | `/` | Login gate when signed out, statement list when signed in |
 | `/problem-statements/SIH26011` | The complete problem statement |
 
-`vercel.json` rewrites `/problem-statements/:id` to `index.html`. A signed-out visitor opening a statement URL directly sees the login screen; after signing in, that statement opens rather than the bare list.
+`vercel.json` rewrites `/problem-statements/*` to the app shell. A signed-out visitor opening a statement URL directly sees the login screen; after signing in, that statement opens rather than the bare list.
 
 ## Filters
 
-The browser supports server-side search and filtering by theme, organization, category, effort, innovation, verdict, and serial-number range. Enter `10` and `20` under **From PS no.** and **To PS no.** to show statements 10 through 20, then select **Yellow** to limit that range to yellow verdicts.
+The browser supports server-side search and filtering by theme, organization, category, dataset availability, starred items, hidden rejected items, and serial-number range. Search accepts both full PS ids like `SIH26011` and numeric forms like `26011`.
 
 ## Problem Statement Views
 
 Cards show a two-line preview, clamped with `-webkit-line-clamp`. The whole card is a link — click the title, the description, anywhere on the card, or **Read full statement →**, or focus it and press Enter.
 
-The full view is a page, not a modal, so nothing constrains its height. It renders every field the import holds: decoded summary, why it matters, background, the verbatim official description, expected-solution bullets, pain points, competitive landscape, the 36-hour build plan, evaluator questions, the evaluation scorecard, verdict panel, SWOT, and the dataset link. Long descriptions keep their paragraphs and lettered lists via `white-space: pre-wrap` rather than injected markup. `scripts/test-team.js` asserts that no `.detail-*` rule introduces `line-clamp`, `overflow: hidden`, or a `max-height`.
+The full view is a page, not a modal, so nothing constrains its height. It renders the decoded summary, why it matters, background, the verbatim official description, expected-solution bullets, pain points, competitive landscape, the 36-hour build plan, evaluator questions, the evaluation scorecard, SWOT, the dataset link, your personal review state, private notes, team votes, and team notes. Long descriptions keep their paragraphs and lettered lists via `white-space: pre-wrap` rather than injected markup. `scripts/test-team.js` asserts that no `.detail-*` rule introduces `line-clamp`, `overflow: hidden`, or a `max-height`.
 
-## Teams and Comments
+## Teams, Notes, Reviews, and Compare
 
 Once signed in, the team dialog offers two actions:
 
 - **Create team** — team name, team password, and team lead name. The name must be unique across the deployment (case-insensitive); the password is salted and scrypt-hashed. The creator is seated first and flagged as the team lead.
-- **Join team** — the same team name and password, plus the member's own name, shown beside their comments.
+- **Join team** — the same team name and password, plus the member's own name, shown beside their team notes.
 
 A team holds **6 members including the team lead**, so 5 more can join after the lead. The dialog lists the roster with a **Team Lead** badge, shows `4 / 6 Members`, and displays *"Team is full — maximum 6 members allowed."* once full. A member belongs to one team at a time and can leave to switch.
 
 Seats are numbered 1 to 6 and a joiner takes the **lowest free** seat, so a seat given up by someone who left is reused rather than lost. When the lead leaves, the remaining member with the lowest seat inherits the role (the team is never leaderless); when the last member leaves, the team row is deleted rather than left behind as an empty team someone could join.
 
-Comments are stored per team id and visible to that team only. Deleting a team cascades its memberships but leaves its comments in Postgres under the old team id.
+Team notes are stored per team id and visible to that team only. Deleting a team cascades its memberships but leaves its historical team notes in Postgres under the old team id.
+
+Each signed-in user also has a private per-problem review state stored server-side:
+
+- reading: `to read` or `read`
+- decision: `keep`, `accept`, or `reject`
+- private note: up to 4000 characters
+
+Team members can also vote `yes`, `maybe`, or `no` on each problem statement. The detail page shows team vote totals.
+
+The list page includes:
+
+- review badges on cards
+- a summary bar for accepted / keep / rejected / to-read / read counts
+- a review board grouped by status
+- compare selection for up to 4 problem statements
+- markdown export of the current review board
 
 ## Running It Locally
 
@@ -128,6 +144,8 @@ Run the offline checks with:
 
 ```bash
 node scripts/test-team.js
+node scripts/checks/guards.mjs
+BASE_URL=http://localhost:3000 node --env-file=.env scripts/checks/e2e-flow.mjs
 ```
 
 ## Resilience Notes
