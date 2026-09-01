@@ -375,7 +375,6 @@ function cardTemplate(problem) {
       <span class="card-more">Read full statement →</span>
     </div>
     <div class="card-facts">
-      ${problem.has_dataset ? '<div class="fact"><span>Data</span><strong class="dataset-dot">Available</strong></div>' : ""}
       <button class="text-button" type="button" data-compare="${id}">${inCompare ? "Remove compare" : "Compare"}</button>
     </div>
     <button class="icon-button ${starred ? "starred" : ""}" type="button" data-star="${id}" aria-label="${starred ? "Remove star from" : "Star"} ${id}" title="${starred ? "Remove from shortlist" : "Add to shortlist"}">
@@ -534,29 +533,17 @@ function collapseSection(title, inner, open = false) {
   return `<details class="detail-section detail-collapse"${open ? " open" : ""}><summary><h3>${escapeHtml(title)}</h3><span class="collapse-hint" aria-hidden="true"></span></summary><div class="collapse-body">${inner}</div></details>`;
 }
 
-function scorecardSection(scorecard) {
-  const rows = Object.values(scorecard || {}).filter((row) => row?.label);
-  if (!rows.length) return "";
-  return collapseSection("Evaluation scorecard", `<dl class="scorecard">${rows.map((row) => `
-    <div><dt>${escapeHtml(row.label)}</dt><dd><strong>${escapeHtml(row.tier || "—")}</strong>${row.note ? `<span>${escapeHtml(row.note)}</span>` : ""}</dd></div>`).join("")}</dl>`);
-}
-
 function problemToMarkdown(problem) {
-  const bullets = (items) => (items || []).map((item) => `- ${item}`).join("\n");
   const parts = [
     `# ${problem.ps_number} — ${problem.title}`, "",
     `**Organization:** ${problem.org}  `,
-    `**Category:** ${problem.category} · **Theme:** ${problem.theme}`, "",
-    problem.problem_decode?.plain_summary ? `## Summary\n\n${problem.problem_decode.plain_summary}` : "",
-    problem.problem_decode?.why_it_matters ? `## Why it matters\n\n${problem.problem_decode.why_it_matters}` : "",
-    problem.background ? `## Background\n\n${problem.background}` : "",
-    problem.description ? `## Official description\n\n${problem.description}` : "",
-    problem.expected_solution_bullets?.length ? `## Expected solution\n\n${bullets(problem.expected_solution_bullets)}` : "",
-    problem.problem_decode?.pain_points?.length ? `## Pain points\n\n${bullets(problem.problem_decode.pain_points)}` : "",
-    problem.competitive_landscape ? `## Competitive landscape\n\n**${problem.competitive_landscape.tier || "—"} competition.** ${problem.competitive_landscape.reason || ""}\n\n${problem.competitive_landscape.differentiation_angle || ""}` : "",
-    problem.build_plan_36h ? `## 36-hour build plan\n\n${Object.values(problem.build_plan_36h).map((stage) => `**${stage.label}**\n${bullets(stage.items)}`).join("\n\n")}` : "",
-    problem.evaluator_questions?.length ? `## Questions evaluators may ask\n\n${bullets(problem.evaluator_questions)}` : "",
+    `**Department:** ${problem.department || "N/A"}  `,
+    `**Category:** ${problem.category} · **Theme:** ${problem.theme}  `,
+    `**Deadline:** ${problem.deadline || "N/A"} · **Submitted ideas:** ${problem.ideas || "N/A"}`, "",
+    problem.description ? `## Description\n\n${problem.description}` : "",
     problem.dataset_link ? `## Dataset\n\n${problem.dataset_link}` : "",
+    problem.youtube ? `## Youtube\n\n${problem.youtube}` : "",
+    problem.contact ? `## Contact\n\n${problem.contact}` : "",
   ];
   return parts.filter(Boolean).join("\n\n").replace(/\n{3,}/g, "\n\n");
 }
@@ -576,22 +563,12 @@ const AI_TARGETS = {
 };
 
 function detailTemplate(problem) {
-  const plan = Object.values(problem.build_plan_36h || {}).map((stage) => `<div class="plan-stage"><h4>${escapeHtml(stage.label)}</h4><ul>${(stage.items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`).join("");
   const review = reviewState(problem.ps_number);
   return `<p class="detail-eyebrow">${escapeHtml(problem.org)}</p>
     <h2 id="detail-title">${escapeHtml(problem.title)}</h2>
     <div class="detail-tags"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span></div>
     <div class="detail-grid"><div>
-      ${proseSection("Problem decoded", problem.problem_decode?.plain_summary || problem.description, true)}
       ${proseSection("Official description", problem.description, true)}
-      ${proseSection("Why it matters", problem.problem_decode?.why_it_matters)}
-      ${proseSection("Background", problem.background)}
-      ${listSection("Expected solution", problem.expected_solution_bullets)}
-      ${listSection("Pain points", problem.problem_decode?.pain_points)}
-      ${collapseSection("Competitive landscape", `<p><strong>${escapeHtml(problem.competitive_landscape?.tier || "—")} competition.</strong> ${escapeHtml(problem.competitive_landscape?.reason || "")}</p><p>${escapeHtml(problem.competitive_landscape?.differentiation_angle || "")}</p>`)}
-      ${collapseSection("36-hour build plan", plan)}
-      ${listSection("Questions evaluators may ask", problem.evaluator_questions)}
-      ${scorecardSection(problem.evaluation_scorecard)}
     </div><aside>
       <section class="detail-section review-panel"><h3>Your review</h3>
         <div class="review-group"><span>Reading</span><div class="review-actions">${Object.entries(READING_STATES).map(([value, label]) => `<button class="review-button ${review.reading === value ? "active" : ""}" type="button" data-set-reading="${value}">${label}</button>`).join("")}<button class="review-button clear" type="button" data-clear-reading>Clear</button></div></div>
@@ -600,11 +577,14 @@ function detailTemplate(problem) {
         <form class="private-note-form" id="private-note-form"><label><span class="filter-label">Private note</span><textarea id="private-note-body" maxlength="4000" placeholder="Write your own note for this problem statement…">${escapeHtml(review.privateNote || "")}</textarea></label><div class="private-note-row"><span class="gate-status" id="private-note-status"></span><div class="private-note-actions"><button class="text-button" type="button" id="private-note-clear">Clear note</button><button class="primary-button" type="submit">Save note</button></div></div></form>
         <div class="review-group"><span>Compare</span><div class="review-actions"><button class="review-button ${state.compare.has(problem.ps_number) ? "active" : ""}" type="button" data-compare="${escapeHtml(problem.ps_number)}">${state.compare.has(problem.ps_number) ? "Selected for compare" : "Add to compare"}</button></div></div>
       </section>
-      <div class="mini-stat"><span>Competition</span><strong>${escapeHtml(problem.competitive_landscape?.tier || "—")}</strong></div>
-      <div class="mini-stat"><span>Ideas submitted</span><strong>${escapeHtml(problem.ideas || "—")}</strong></div>
-      <div class="mini-stat"><span>Deadline</span><strong>${escapeHtml(problem.deadline || "—")}</strong></div>
-      ${safeUrl(problem.dataset_link) ? `<a class="detail-link" href="${escapeHtml(safeUrl(problem.dataset_link))}" target="_blank" rel="noreferrer noopener">Open official dataset ↗</a>` : ""}
-      ${listSection("Strengths", problem.swot?.strengths)}${listSection("Risks", [...(problem.swot?.weaknesses || []), ...(problem.swot?.threats || [])])}${listSection("Opportunities", problem.swot?.opportunities)}
+      <div class="mini-stat"><span>Organization</span><strong>${escapeHtml(problem.org || "—")}</strong></div>
+      <div class="mini-stat"><span>Department</span><strong>${escapeHtml(problem.department || "—")}</strong></div>
+      <div class="mini-stat"><span>Category</span><strong>${escapeHtml(problem.category || "—")}</strong></div>
+      <div class="mini-stat"><span>Theme</span><strong>${escapeHtml(problem.theme || "—")}</strong></div>
+      <div class="mini-stat"><span>Deadline for idea submission</span><strong>${escapeHtml(problem.deadline || "—")}</strong></div>
+      ${problem.contact ? `<div class="mini-stat"><span>Contact info</span><strong>${escapeHtml(problem.contact)}</strong></div>` : ""}
+      ${safeUrl(problem.youtube) ? `<a class="detail-link" href="${escapeHtml(safeUrl(problem.youtube))}" target="_blank" rel="noreferrer noopener">Watch official video ↗</a>` : ""}
+
       <section class="detail-section" id="comments-section"><h3>Team notes</h3>${state.team ? '<div id="comment-list"><p>Loading team notes…</p></div><form class="comment-form" id="comment-form"><textarea id="comment-body" maxlength="2000" required placeholder="Add a team note…"></textarea><div class="comment-row"><span class="gate-status" id="comment-status"></span><button class="primary-button" type="submit">Add team note</button></div></form>' : '<p>Create or join a team to read and leave team notes.</p>'}</section>
     </aside></div>`;
 }
@@ -749,7 +729,7 @@ async function openCompareDialog() {
     $("#compare-content").innerHTML = `<div class="compare-grid">${problems.map((problem) => {
       const review = reviewState(problem.ps_number);
       const statuses = reviewBadges(problem.ps_number);
-      return `<article class="compare-card"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span><h3>${escapeHtml(problem.title)}</h3><p>${escapeHtml(problem.org)}</p>${statuses ? `<div class="card-statuses">${statuses}</div>` : ""}<p>${escapeHtml(problem.problem_decode?.plain_summary || problem.summary || problem.description || "")}</p>${review.privateNote ? `<section><strong>Your note</strong><p>${escapeHtml(review.privateNote)}</p></section>` : ""}${problem.expected_solution_bullets?.length ? `<section><strong>Expected solution</strong><ul>${problem.expected_solution_bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : ""}<div class="board-item-actions"><button class="text-button" type="button" data-open="${escapeHtml(problem.ps_number)}">Open</button><button class="text-button" type="button" data-compare="${escapeHtml(problem.ps_number)}">Remove compare</button></div></article>`;
+      return `<article class="compare-card"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span><h3>${escapeHtml(problem.title)}</h3><p>${escapeHtml(problem.org)}</p>${statuses ? `<div class="card-statuses">${statuses}</div>` : ""}<p>${escapeHtml(problem.summary || problem.description || "")}</p>${review.privateNote ? `<section><strong>Your note</strong><p>${escapeHtml(review.privateNote)}</p></section>` : ""}<div class="board-item-actions"><button class="text-button" type="button" data-open="${escapeHtml(problem.ps_number)}">Open</button><button class="text-button" type="button" data-compare="${escapeHtml(problem.ps_number)}">Remove compare</button></div></article>`;
     }).join("")}</div>`;
   } catch (error) {
     $("#compare-content").innerHTML = `<p>${escapeHtml(error.message)}</p>`;

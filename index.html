@@ -18,13 +18,7 @@
     <link rel="icon" href="/assets/logo.jpg" type="image/jpeg" />
     <link rel="apple-touch-icon" href="/assets/logo.jpg" />
     <link rel="stylesheet" href="/styles.css" />
-    <script>
-      // Applies the saved theme before first paint to avoid a flash.
-      if (localStorage.getItem("sih-theme") === "dark" ||
-          (!localStorage.getItem("sih-theme") && matchMedia("(prefers-color-scheme: dark)").matches)) {
-        document.documentElement.classList.add("dark");
-      }
-    </script>
+    <script src="/theme-init.js"></script>
     <script src="/app.js" defer></script>
   </head>
   <body>
