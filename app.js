@@ -34,8 +34,6 @@ const filterNames = { search: "Search", theme: "Theme", org: "Organization", ind
 const DETAIL_PREFIX = "/problem-statements/";
 let refreshRequest;
 let searchTimer;
-let listRequest;
-let metadataRequest;
 let toastTimer;
 let pendingRoute = "";
 let commentsObserver;
@@ -51,10 +49,6 @@ function setDocumentTitle(title = "") {
 function currentDetailId() {
   const path = decodeURIComponent(location.pathname);
   return path.startsWith(DETAIL_PREFIX) ? path.slice(DETAIL_PREFIX.length).replace(/\/$/, "") : "";
-}
-
-function detailCacheKey(id) {
-  return state.email ? `sih-detail:${state.email}:${id}` : "";
 }
 
 function emptyReview() {
@@ -141,45 +135,8 @@ async function loadReviewsForProblems(ids) {
 }
 
 async function problemForCompare(id) {
-  const cached = readCachedDetail(id);
-  if (cached) return cached;
-  const problem = await api(`/api/problems/${encodeURIComponent(id)}`);
-  writeCachedDetail(id, problem);
-  return problem;
-}
-
-function readCachedDetail(id) {
-  const key = detailCacheKey(id);
-  if (!key) return null;
-  try {
-    const raw = sessionStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedDetail(id, problem) {
-  const key = detailCacheKey(id);
-  if (!key) return;
-  try {
-    sessionStorage.setItem(key, JSON.stringify(problem));
-  } catch {}
-}
-
-function readCachedMetadata() {
-  try {
-    const raw = sessionStorage.getItem("sih-filters:v1");
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedMetadata(metadata) {
-  try {
-    sessionStorage.setItem("sih-filters:v1", JSON.stringify(metadata));
-  } catch {}
+  await loadDataset();
+  return dataset.byId.get(id) || null;
 }
 
 function applyMetadata(metadata) {
@@ -257,11 +214,48 @@ function syncControls() {
   document.querySelectorAll("[data-quick]").forEach((button) => button.classList.toggle("active", button.dataset.quick === state.quick));
 }
 
+// The access token used to live only in memory, so every reload had to round-trip
+// /api/session/refresh (Supabase + two DB writes) before anything could render --
+// which is what made the boot screen and a login-screen flash visible on refresh.
+// Persisting it means a reload restores the signed-in view immediately.
+// ponytail: localStorage is readable by any script on this origin, so this trades
+// XSS resistance for the reload experience. The strict CSP (script-src 'self', no
+// inline scripts) is what keeps that trade acceptable; the refresh token itself
+// stays in an HttpOnly cookie.
+const SESSION_KEY = "sih-session:v1";
+
+function saveSession(result) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      accessToken: result.accessToken,
+      email: result.email || "",
+      team: result.team || null,
+      expiresAt: Date.now() + (Number(result.expiresIn) || 3600) * 1000,
+    }));
+  } catch {}
+}
+
+function readSession() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    return saved?.accessToken ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {}
+}
+
 async function refreshAccessToken() {
   if (!refreshRequest) {
     refreshRequest = fetch("/api/session/refresh", { method: "POST", credentials: "same-origin" })
       .then(async (response) => {
         if (!response.ok) {
+          if (response.status === 401) clearSession();
           const failure = new Error(response.status === 401 ? "Session expired" : `Could not restore your session (${response.status})`);
           failure.status = response.status;
           throw failure;
@@ -270,6 +264,7 @@ async function refreshAccessToken() {
         state.accessToken = result.accessToken;
         state.email = result.email || "";
         state.team = result.team || null;
+        saveSession(result);
         return result.accessToken;
       })
       .finally(() => { refreshRequest = null; });
@@ -298,37 +293,69 @@ async function api(path, options = {}, retry = true) {
   return response.json();
 }
 
-function queryString(page) {
-  const params = new URLSearchParams({ page });
-  ["search", "theme", "org", "category", "from", "to", "quick"].forEach((key) => {
-    if (state[key] && key !== "quick") params.set(key, state[key]);
-  });
-  if (state.quick === "starred") params.set("ids", [...state.starred].join(","));
-  if (state.quick === "dataset") params.set("quick", state.quick);
-  return params;
+// The 229 official statements are public, immutable data (~200 KB gzipped), so they
+// ship as one CDN-cached file instead of a paginated, database-backed API. Search,
+// filtering and detail pages then cost zero round trips.
+const dataset = { rows: [], byId: new Map() };
+let datasetRequest;
+
+async function loadDataset() {
+  if (dataset.rows.length) return dataset.rows;
+  datasetRequest ||= fetch("/ps.json")
+    .then((response) => {
+      if (!response.ok) throw new Error(`Could not load the problem statements (${response.status})`);
+      return response.json();
+    })
+    .then((rows) => {
+      for (const row of rows) {
+        row.summary = (row.description || "").slice(0, 400);
+        row.blob = [row.ps_number, row.title, row.org, row.department, row.category, row.theme, row.description].join(" ").toLowerCase();
+        dataset.byId.set(row.ps_number, row);
+      }
+      dataset.rows = rows;
+      return rows;
+    })
+    .finally(() => { datasetRequest = null; });
+  return datasetRequest;
+}
+
+function matchesFilters(problem) {
+  if (state.theme && problem.theme !== state.theme) return false;
+  if (state.org && problem.org !== state.org) return false;
+  if (state.category && problem.category !== state.category) return false;
+  const from = Number.parseInt(state.from, 10);
+  const to = Number.parseInt(state.to, 10);
+  if (from && problem.sno < from) return false;
+  if (to && problem.sno > to) return false;
+  if (state.quick === "starred" && !state.starred.has(problem.ps_number)) return false;
+  if (state.quick === "dataset" && !problem.dataset_link) return false;
+  // Every whitespace-separated term must appear somewhere in the statement, which
+  // matches how the old websearch_to_tsquery behaved for ordinary queries.
+  const terms = state.search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return terms.every((term) => problem.blob.includes(term));
 }
 
 async function loadProblems({ append = false } = {}) {
-  listRequest?.abort();
-  listRequest = new AbortController();
   const page = append ? state.page + 1 : 1;
   $("#load-more").disabled = true;
   try {
-    const result = await api(`/api/problems?${queryString(page)}`, { signal: listRequest.signal });
-    const incoming = result.items.filter((problem) => decisionFilter(problem) && reviewFilter(problem));
-    state.problems = append ? [...state.problems, ...incoming] : incoming;
-    state.page = result.page;
-    state.total = state.quick === "hide-rejected" ? state.problems.length : result.total;
-    state.hasMore = result.hasMore;
+    const rows = await loadDataset();
+    const matched = rows.filter(matchesFilters);
+    const pageSize = 12;
+    const visible = matched.slice(0, page * pageSize);
+    state.page = page;
+    state.hasMore = matched.length > visible.length;
+    state.problems = visible.filter((problem) => decisionFilter(problem) && reviewFilter(problem));
+    state.total = state.quick === "hide-rejected" ? state.problems.length : matched.length;
     state.listLoaded = true;
     // Render the list right away; review badges and the local decision/review
     // filters apply once the reviews request lands.
     render();
-    await loadReviewsForProblems(result.items.map((item) => item.ps_number));
-    state.problems = state.problems.filter((problem) => decisionFilter(problem) && reviewFilter(problem));
+    await loadReviewsForProblems(visible.map((item) => item.ps_number));
+    state.problems = visible.filter((problem) => decisionFilter(problem) && reviewFilter(problem));
     render();
   } catch (error) {
-    if (error.name !== "AbortError") showListError(error.message);
+    showListError(error.message);
   } finally {
     $("#load-more").disabled = false;
   }
@@ -336,20 +363,11 @@ async function loadProblems({ append = false } = {}) {
 
 async function loadMetadata() {
   if (state.filtersLoaded) return;
-  const cached = readCachedMetadata();
-  if (cached) {
-    applyMetadata(cached);
-    return;
-  }
-  if (!metadataRequest) {
-    metadataRequest = api("/api/filters")
-      .then((metadata) => {
-        writeCachedMetadata(metadata);
-        applyMetadata(metadata);
-      })
-      .finally(() => { metadataRequest = null; });
-  }
-  return metadataRequest;
+  const rows = await loadDataset();
+  const unique = (key) => [...new Set(rows.map((row) => row[key]).filter(Boolean))].sort();
+  const themes = unique("theme");
+  const orgs = unique("org");
+  applyMetadata({ themes, orgs, stats: { total: rows.length, themes: themes.length, orgs: orgs.length } });
 }
 
 async function loadMetadataNonFatal() {
@@ -646,21 +664,14 @@ async function showDetail(id) {
     $("#detail-body").innerHTML = '<div class="empty-state"><h2>Unknown statement</h2><p>That problem statement number does not exist.</p></div>';
     return;
   }
-  const cached = readCachedDetail(id);
-  if (cached) {
-    state.currentProblem = cached;
-    setDocumentTitle(cached.ps_number || id);
-    renderCurrentProblem();
-    loadReview(id).then(() => {
-      if (state.currentProblem?.ps_number === id) renderCurrentProblem();
-      if (state.listLoaded) render();
-    }).catch(() => {});
-    return;
-  }
   try {
-    const problem = await api(`/api/problems/${encodeURIComponent(id)}`);
+    await loadDataset();
+    const problem = dataset.byId.get(id);
     if (state.view !== "detail" || $("#detail-star").dataset.star !== id) return;
-    writeCachedDetail(id, problem);
+    if (!problem) {
+      $("#detail-body").innerHTML = '<div class="empty-state"><h2>Unknown statement</h2><p>That problem statement number does not exist.</p></div>';
+      return;
+    }
     state.currentProblem = problem;
     setDocumentTitle(problem.ps_number || id);
     renderCurrentProblem();
@@ -1189,6 +1200,7 @@ function endTour() {
 }
 
 function showGate(message = "") {
+  clearSession();
   state.accessToken = "";
   state.team = null;
   state.currentProblem = null;
@@ -1229,6 +1241,7 @@ async function submitAuth(event) {
     state.accessToken = result.accessToken;
     state.email = result.email || "";
     state.team = result.team || null;
+    saveSession(result);
     $("#auth-password").value = "";
     await startApp();
     toast(action === "signup" ? "Account created — welcome" : "Login successful");
@@ -1263,10 +1276,24 @@ async function boot() {
   readUrl();
   bindEvents();
   setAuthMode("login");
-  $("#boot-screen").hidden = false;
-  $("#access-gate").hidden = true;
   // A protected deep link is remembered, then opened once authentication succeeds.
   if (location.pathname.startsWith(DETAIL_PREFIX)) pendingRoute = location.pathname;
+
+  // A stored session renders the signed-in app straight away and rotates the token in
+  // the background, so a reload never flashes the boot or login screen. An expired
+  // stored token still works: the first API call 401s and api() refreshes in place.
+  const saved = readSession();
+  if (saved) {
+    state.accessToken = saved.accessToken;
+    state.email = saved.email;
+    state.team = saved.team;
+    startApp().catch((error) => { toast(error.message, "error"); route(); });
+    if (saved.expiresAt - Date.now() < 5 * 60 * 1000) refreshAccessToken().then(renderTeamBar).catch(() => {});
+    return;
+  }
+
+  $("#boot-screen").hidden = false;
+  $("#access-gate").hidden = true;
   // Only a 401 means "not signed in". Anything else is the server or network having
   // a moment, so retry once rather than dropping the user back to the login screen.
   for (const attempt of [0, 1]) {

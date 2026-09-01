@@ -39,4 +39,14 @@ const html = fs.readFileSync(new URL("../../index.html", import.meta.url), "utf8
 assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)/, "no inline scripts (CSP script-src 'self' blocks them)");
 assert.match(html, /<script src="\/theme-init\.js"><\/script>/, "theme restored from an external script before paint");
 
+// The statement list and detail pages now read /ps.json from the CDN. If that file is
+// excluded from the deploy the whole app shows an empty list, so keep both halves
+// of that contract asserted together.
+const app = fs.readFileSync(new URL("../../app.js", import.meta.url), "utf8");
+assert.doesNotMatch(app, /\/api\/(problems|filters)/, "no calls to the removed list/detail endpoints");
+assert.match(app, /fetch\("\/ps\.json"\)/, "statements load from the static file");
+assert.doesNotMatch(fs.readFileSync(new URL("../../.vercelignore", import.meta.url), "utf8"), /^ps\.json$/m, "ps.json must be deployed");
+const ps = JSON.parse(fs.readFileSync(new URL("../../ps.json", import.meta.url), "utf8"));
+assert.ok(ps.length > 200 && ps.every((row) => row.ps_number && row.description), "ps.json carries every statement with its description");
+
 console.log("guard checks passed");
