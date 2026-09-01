@@ -33,4 +33,10 @@ const db = fs.readFileSync(new URL("../../lib/db.js", import.meta.url), "utf8");
 assert.match(db, /SUPABASE_DB_CA_CERT_PEM/, "inline PEM configuration supported");
 assert.match(db, /ssl: ca \? \{ ca, rejectUnauthorized: true \} : \{ rejectUnauthorized: false \}/, "DB uses verified TLS when a CA is configured and falls back otherwise");
 
+// The CSP has no 'unsafe-inline', so any inline <script> in index.html is dead code.
+// A saved dark theme silently reverted to light on reload because of exactly that.
+const html = fs.readFileSync(new URL("../../index.html", import.meta.url), "utf8");
+assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)/, "no inline scripts (CSP script-src 'self' blocks them)");
+assert.match(html, /<script src="\/theme-init\.js"><\/script>/, "theme restored from an external script before paint");
+
 console.log("guard checks passed");
