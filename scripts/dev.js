@@ -16,8 +16,11 @@ const ROUTES = [
   [/^\/api\/auth$/, "../api/auth.js"],
   [/^\/api\/team$/, "../api/team.js"],
   [/^\/api\/reviews$/, "../api/reviews.js"],
+  [/^\/api\/filters$/, "../api/filters.js"],
   [/^\/api\/comments$/, "../api/comments/index.js"],
   [/^\/api\/session\/refresh$/, "../api/session/refresh.js"],
+  [/^\/api\/problems$/, "../api/problems/index.js"],
+  [/^\/api\/problems\/([^/]+)$/, "../api/problems/[id].js", "id"],
 ];
 
 async function readBody(request) {

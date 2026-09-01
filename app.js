@@ -293,20 +293,17 @@ async function api(path, options = {}, retry = true) {
   return response.json();
 }
 
-// The 229 official statements are public, immutable data (~200 KB gzipped), so they
-// ship as one CDN-cached file instead of a paginated, database-backed API. Search,
-// filtering and detail pages then cost zero round trips.
+// The 229 official statements come from Supabase in one request and are then filtered,
+// paginated and opened entirely in the browser, so browsing costs no further round
+// trips. The endpoint keeps them in memory, so a warm function never touches the DB.
 const dataset = { rows: [], byId: new Map() };
 let datasetRequest;
 
 async function loadDataset() {
   if (dataset.rows.length) return dataset.rows;
-  datasetRequest ||= fetch("/ps.json")
-    .then((response) => {
-      if (!response.ok) throw new Error(`Could not load the problem statements (${response.status})`);
-      return response.json();
-    })
-    .then((rows) => {
+  datasetRequest ||= api("/api/problems?all=1")
+    .then((result) => {
+      const rows = result.items || [];
       for (const row of rows) {
         row.summary = (row.description || "").slice(0, 400);
         row.blob = [row.ps_number, row.title, row.org, row.department, row.category, row.theme, row.description].join(" ").toLowerCase();
@@ -601,7 +598,6 @@ function detailTemplate(problem) {
       <div class="mini-stat"><span>Theme</span><strong>${escapeHtml(problem.theme || "—")}</strong></div>
       <div class="mini-stat"><span>Deadline for idea submission</span><strong>${escapeHtml(problem.deadline || "—")}</strong></div>
       ${problem.contact ? `<div class="mini-stat"><span>Contact info</span><strong>${escapeHtml(problem.contact)}</strong></div>` : ""}
-      ${safeUrl(problem.youtube) ? `<a class="detail-link" href="${escapeHtml(safeUrl(problem.youtube))}" target="_blank" rel="noreferrer noopener">Watch official video ↗</a>` : ""}
 
       <section class="detail-section" id="comments-section"><h3>Team notes</h3>${state.team ? '<div id="comment-list"><p>Loading team notes…</p></div><form class="comment-form" id="comment-form"><textarea id="comment-body" maxlength="2000" required placeholder="Add a team note…"></textarea><div class="comment-row"><span class="gate-status" id="comment-status"></span><button class="primary-button" type="submit">Add team note</button></div></form>' : '<p>Create or join a team to read and leave team notes.</p>'}</section>
     </aside></div>`;

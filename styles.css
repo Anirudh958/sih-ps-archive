@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --paper: #f5f7f7;
   --surface: #ffffff;
   --ink: #17202b;
@@ -27,6 +28,7 @@
 }
 
 html.dark {
+  color-scheme: dark;
   --paper: #0e141d;
   --surface: #182230;
   --ink: #eef2f7;
@@ -59,6 +61,10 @@ html.dark {
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif; }
 button, input, select { font: inherit; }
+/* Form controls do not inherit colour, so without this every textarea and bare
+   input stayed on the UA's white background in dark mode. */
+input, select, textarea { color: var(--ink); background: var(--surface); }
+::placeholder { color: var(--muted); }
 button, select { cursor: pointer; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid color-mix(in srgb, var(--blue), transparent 65%); outline-offset: 2px; }
 
