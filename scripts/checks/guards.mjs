@@ -33,10 +33,12 @@ const db = fs.readFileSync(new URL("../../lib/db.js", import.meta.url), "utf8");
 assert.match(db, /SUPABASE_DB_CA_CERT_PEM/, "inline PEM configuration supported");
 assert.match(db, /ssl: ca \? \{ ca, rejectUnauthorized: true \} : \{ rejectUnauthorized: false \}/, "DB uses verified TLS when a CA is configured and falls back otherwise");
 
-// The CSP has no 'unsafe-inline', so any inline <script> in index.html is dead code.
-// A saved dark theme silently reverted to light on reload because of exactly that.
+// The CSP has no 'unsafe-inline', so any inline executable <script> in index.html is
+// dead code. A saved dark theme silently reverted to light on reload because of
+// exactly that. JSON-LD data blocks are exempt: they are never executed, so
+// script-src does not block them and Googlebot still reads them from the DOM.
 const html = fs.readFileSync(new URL("../../index.html", import.meta.url), "utf8");
-assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)/, "no inline scripts (CSP script-src 'self' blocks them)");
+assert.doesNotMatch(html, /<script(?![^>]*\b(?:src=|type="application\/ld\+json"))/, "no inline executable scripts (CSP script-src 'self' blocks them)");
 assert.match(html, /<script src="\/theme-init\.js"><\/script>/, "theme restored from an external script before paint");
 
 // The statement list and detail pages both read one bulk response from Supabase.
