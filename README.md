@@ -20,10 +20,16 @@ and greppable from your terminal.
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-16a34a?style=flat-square)](CONTRIBUTING.md)
 [![Stars](https://img.shields.io/github/stars/DeadIndian/sih-ps-archive?style=flat-square&color=eab308)](https://github.com/DeadIndian/sih-ps-archive/stargazers)
 
+**[→ Browse the 2026 statements online](https://sih.saireddy.dev)** — search, filter and
+shortlist them in a browser, with six-member teams, private notes and per-team votes.
+The app lives in this repository and reads these Markdown files directly. See
+[docs/APP.md](docs/APP.md).
+
 [What's Inside](#-whats-inside) ·
 [Search Recipes](#-search-recipes) ·
 [Coverage & Gaps](#-coverage--gaps) ·
 [Data Caveats](#-data-caveats) ·
+[The App](docs/APP.md) ·
 [Contribute](CONTRIBUTING.md) ·
 [Attribution](ATTRIBUTION.md)
 
@@ -37,6 +43,7 @@ and greppable from your terminal.
 - [What's inside](#-whats-inside)
 - [Anatomy of a problem statement](#-anatomy-of-a-problem-statement)
 - [Search recipes](#-search-recipes)
+- [Browse it in a browser](#-browse-it-in-a-browser)
 - [Themes across three years](#-themes-across-three-years)
 - [The software/hardware split](#-the-softwarehardware-split)
 - [Who's asking](#-whos-asking)
@@ -191,6 +198,22 @@ grep -h '^# ' 2024/*.md 2025/*.md 2026/*.md \
 
 Swap `grep` for `rg` throughout if you have ripgrep; it's roughly 10× faster on the
 full-text sweeps.
+
+## 🖥️ Browse it in a browser
+
+Not everything is a `grep` job. **[sih.saireddy.dev](https://sih.saireddy.dev)** serves
+the 2026 statements as a searchable list — filter by theme, organisation, category or
+dataset availability, open the full official text, and shortlist as you go. No account
+needed to read.
+
+Sign in and you also get six-member teams, private per-statement notes, reading and
+decision status, team votes and team-private comments.
+
+The app is in this repository: `api/`, `lib/`, `index.html`, `app.js`. It reads
+`2026/*.md` straight off the deployment — no database holds the statements, so the
+Markdown here is the only source of truth. Editing a file and pushing is a content
+release. Setup, configuration and deployment are in **[docs/APP.md](docs/APP.md)**;
+the design is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## 📊 Themes across three years
 

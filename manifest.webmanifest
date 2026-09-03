@@ -1,0 +1,23 @@
+{
+  "name": "SIH 2026 Selection Desk",
+  "short_name": "SIH Desk",
+  "description": "Search, filter and shortlist all 229 official Smart India Hackathon 2026 problem statements.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7f7",
+  "theme_color": "#194fd1",
+  "lang": "en-IN",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "180x180"
+    }
+  ]
+}

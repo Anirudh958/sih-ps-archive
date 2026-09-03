@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIH 2026 Problem Statements — Search, Filter &amp; Shortlist</title>
+    <meta name="description" content="Browse all 229 official Smart India Hackathon 2026 problem statements. Search by PS number, theme, ministry or organisation, then shortlist with your team." />
+    <link rel="canonical" href="https://sih.saireddy.dev/" />
+    <meta name="theme-color" content="#194fd1" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SIH 2026 Selection Desk" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:title" content="SIH 2026 Problem Statements — Search, Filter &amp; Shortlist" />
+    <meta property="og:description" content="All 229 official Smart India Hackathon 2026 problem statements in one place. Search by PS number, theme, ministry or organisation, then shortlist with your team." />
+    <!-- Social crawlers (X, Facebook, LinkedIn, WhatsApp) do not render SVG previews,
+         so the card points at a real raster screenshot. -->
+    <meta property="og:image" content="https://sih.saireddy.dev/assets/screenshots/hero.png" />
+    <meta property="og:image:width" content="1440" />
+    <meta property="og:image:height" content="900" />
+    <meta property="og:image:alt" content="The SIH 2026 Selection Desk problem statement list" />
+    <meta property="og:url" content="https://sih.saireddy.dev/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SIH 2026 Problem Statements — Search, Filter &amp; Shortlist" />
+    <meta name="twitter:description" content="All 229 official Smart India Hackathon 2026 problem statements in one place. Search, filter by theme or ministry, and shortlist with your team." />
+    <meta name="twitter:image" content="https://sih.saireddy.dev/assets/screenshots/hero.png" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/assets/logo.jpg" type="image/jpeg" sizes="180x180" />
+    <link rel="apple-touch-icon" href="/assets/logo.jpg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "SIH 2026 Selection Desk",
+        "url": "https://sih.saireddy.dev/",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Any (web browser)",
+        "browserRequirements": "Requires JavaScript",
+        "inLanguage": "en-IN",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+        "description": "Search, filter, compare and shortlist all 229 official Smart India Hackathon 2026 problem statements with your team.",
+        "about": { "@type": "Event", "name": "Smart India Hackathon 2026", "url": "https://sih.gov.in/" }
+      }
+    </script>
+    <script src="/theme-init.js"></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <section class="access-gate access-gate-loading" id="boot-screen" aria-labelledby="boot-title">
+      <div class="gate-panel">
+        <img class="brand-mark" src="/assets/logo.jpg" alt="SIH Selection Desk logo" />
+        <p class="eyebrow">SIH 2026 Selection Desk</p>
+        <h2 id="boot-title">SIH 2026 problem<br />statements, all 229.</h2>
+        <p>Loading the official Smart India Hackathon 2026 problem statement list — search by PS number, theme, ministry or organisation, then shortlist with your team.</p>
+      </div>
+    </section>
+
+    <section class="access-gate" id="access-gate" aria-labelledby="access-title" hidden>
+      <div class="gate-panel">
+        <img class="brand-mark" src="/assets/logo.jpg" alt="SIH Selection Desk logo" />
+        <p class="eyebrow">SIH 2026 Selection Desk</p>
+        <h2 id="access-title">Sign in to open<br />the selection desk.</h2>
+        <p>Create an account or sign in to browse all 229 official Smart India Hackathon 2026 problem statements, filter by theme, category and organisation, and shortlist with your team.</p>
+
+        <div class="segmented team-switch" id="auth-mode" role="group" aria-label="Authentication mode">
+          <button class="active" type="button" data-mode="login">Log in</button>
+          <button type="button" data-mode="signup">Sign up</button>
+        </div>
+        <form class="auth-form" id="auth-form">
+          <label><span>Email</span><input id="auth-email" type="email" required autocomplete="email" /></label>
+          <label><span>Password</span><input id="auth-password" type="password" required minlength="8" maxlength="72" autocomplete="current-password" /></label>
+          <p class="gate-status" id="gate-status" role="status">Checking your session…</p>
+          <button class="primary-button" id="auth-submit" type="submit">Log in</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="group-bar" id="group-bar" hidden aria-label="Team collaboration">
+      <div><span class="section-index">TEAM</span><strong id="group-name">No team yet</strong><span id="group-status">Create or join a team to comment together.</span></div>
+      <div class="group-bar-actions">
+        <button class="text-button" id="join-group-button" type="button">Create or join team</button>
+        <button class="text-button" id="logout-button" type="button">Log out</button>
+      </div>
+    </section>
+
+    <header class="masthead">
+      <a class="brand" href="/" aria-label="SIH Selection Desk home">
+        <img class="brand-mark" src="/assets/logo.jpg" alt="SIH Selection Desk logo" />
+        <span><strong>SIH</strong><small>Selection Desk</small></span>
+      </a>
+      <div class="masthead-actions">
+        <div class="deadline"><span>Submission deadline</span><strong>20 Sep 2026</strong></div>
+        <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme" title="Toggle dark theme">
+          <svg class="sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"></path></svg>
+          <svg class="moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z"></path></svg>
+        </button>
+        <button class="icon-button" id="help-button" type="button" aria-label="Show quick tour" title="Quick tour">?</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="list-view" hidden>
+      <section class="intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Smart India Hackathon / 2026</p>
+          <h1 id="page-title">Find the problem<br />worth <em>36 hours.</em></h1>
+        </div>
+        <div class="intro-note">
+          <p>Search the official problem statements, narrow by practical constraints, and star the ones your team should discuss.</p>
+          <div class="dataset-summary" aria-label="Dataset summary">
+            <span><strong id="total-count">—</strong> statements</span>
+            <span><strong id="theme-count">—</strong> themes</span>
+            <span><strong id="org-count">—</strong> organizations</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="Problem statement explorer">
+        <aside class="filters" id="filters">
+          <div class="filter-heading">
+            <div><span class="section-index">01</span><h2>Refine</h2></div>
+            <div class="filter-heading-actions">
+              <button class="text-button" id="clear-filters" type="button">Clear all</button>
+              <button class="icon-button filter-close" id="filter-close" type="button" aria-label="Close filters" title="Close filters">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"></path></svg>
+              </button>
+            </div>
+          </div>
+
+          <label class="search-field">
+            <span>Search everything</span>
+            <span class="search-input-wrap">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+              <input id="search" type="search" aria-label="Search problem statements" placeholder="AI, agriculture, ISRO, SIH26011…" autocomplete="off" />
+              <kbd>/</kbd>
+            </span>
+          </label>
+
+          <div class="filter-block">
+            <span class="filter-label">Quick picks</span>
+            <div class="quick-picks">
+              <button type="button" data-quick="dataset">Has dataset</button>
+              <button type="button" data-quick="starred">Starred</button>
+              <button type="button" data-quick="hide-rejected">Hide rejected</button>
+            </div>
+          </div>
+
+          <label class="filter-block">
+            <span class="filter-label">Theme</span>
+            <select id="theme"><option value="">All themes</option></select>
+          </label>
+
+          <label class="filter-block">
+            <span class="filter-label">Organization</span>
+            <select id="org"><option value="">All organizations</option></select>
+          </label>
+
+          <div class="filter-row">
+            <label class="filter-block">
+              <span class="filter-label">Your review</span>
+              <select id="individual-review">
+                <option value="">Any</option>
+                <option value="to-read">To read</option>
+                <option value="read">Read</option>
+                <option value="keep">Keep</option>
+                <option value="accept">Accept</option>
+                <option value="reject">Reject</option>
+              </select>
+            </label>
+            <label class="filter-block">
+              <span class="filter-label">Your team vote</span>
+              <select id="team-vote">
+                <option value="">Any</option>
+                <option value="yes">Yes</option>
+                <option value="maybe">Maybe</option>
+                <option value="no">No</option>
+              </select>
+            </label>
+          </div>
+
+          <fieldset class="filter-block">
+            <legend class="filter-label">Category</legend>
+            <div class="segmented" id="category-filter">
+              <button class="active" type="button" data-value="">All</button>
+              <button type="button" data-value="Software">Software</button>
+              <button type="button" data-value="Hardware">Hardware</button>
+            </div>
+          </fieldset>
+
+          <div class="filter-row">
+              <label class="filter-block"><span class="filter-label">From PS no.</span><input class="range-input" id="ps-from" type="number" min="1" max="226" placeholder="1" /></label>
+              <label class="filter-block"><span class="filter-label">To PS no.</span><input class="range-input" id="ps-to" type="number" min="1" max="226" placeholder="226" /></label>
+          </div>
+        </aside>
+
+        <div class="results-panel">
+          <div class="results-toolbar">
+            <div>
+              <span class="section-index">02</span>
+              <p><strong id="result-count">—</strong> matches <span id="active-summary"></span></p>
+            </div>
+            <div class="toolbar-actions">
+              <button class="text-button" id="open-compare" type="button" title="Compare the statements you ticked, side by side" hidden>Compare selected (<span id="compare-count">0</span>)</button>
+              <button class="text-button" id="export-board" type="button" title="Download your review board as markdown">Export board</button>
+              <button class="mobile-filter-button" id="mobile-filter-button" type="button">Filters <span id="filter-badge">0</span></button>
+            </div>
+          </div>
+
+          <div class="review-summary" id="review-summary"></div>
+          <div class="active-filters" id="active-filters" aria-label="Active filters"></div>
+          <div class="review-board" id="review-board"></div>
+          <div class="problem-list" id="problem-list" aria-live="polite"></div>
+          <button class="load-more" id="load-more" type="button" hidden>Load 12 more</button>
+          <div class="empty-state" id="empty-state" hidden>
+            <span>0</span><h2>No statements match.</h2><p>Remove a filter or try a broader search term.</p>
+            <button type="button" id="empty-clear">Clear filters</button>
+          </div>
+        </div>
+      </section>
+      </div>
+
+      <article class="detail-view" id="detail-view" hidden aria-labelledby="detail-title">
+        <div class="detail-bar">
+          <button class="text-button" id="detail-back" type="button">← Back to all statements</button>
+          <div class="detail-nav">
+            <button class="icon-button" id="detail-prev" type="button" aria-label="Previous statement" title="Previous (←)">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>
+            </button>
+            <span id="detail-number"></span>
+            <button class="icon-button" id="detail-next" type="button" aria-label="Next statement" title="Next (→)">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg>
+            </button>
+            <label class="detail-scope" title="Walk through only these statements with ← / →">
+              <span>Browsing</span>
+              <select id="detail-scope">
+                <option value="all">All loaded</option>
+                <option value="to-read">To read</option>
+                <option value="keep">Keep</option>
+                <option value="accept">Accept</option>
+                <option value="starred">Starred</option>
+              </select>
+            </label>
+          </div>
+          <div class="detail-tools">
+            <button class="text-button" id="copy-md" type="button" title="Copy this statement as markdown">Copy MD</button>
+            <details class="ask-menu" id="ask-menu">
+              <summary title="Open this statement in an AI chat with a prompt ready">Ask AI ▾</summary>
+              <div class="ask-menu-list">
+                <button type="button" data-ask="chatgpt">ChatGPT ↗</button>
+                <button type="button" data-ask="claude">Claude ↗</button>
+                <button type="button" data-ask="gemini">Gemini ↗</button>
+                <button type="button" data-ask="perplexity">Perplexity ↗</button>
+              </div>
+            </details>
+            <button class="icon-button" id="detail-star" type="button" aria-label="Star this problem statement" title="Star problem statement">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"></path></svg>
+            </button>
+          </div>
+        </div>
+        <div class="detail-body" id="detail-body"></div>
+      </article>
+    </main>
+
+    <div class="tour-backdrop" id="tour-backdrop" hidden>
+      <div class="tour-spotlight" id="tour-spotlight"></div>
+      <div class="tour-card" id="tour-card" role="dialog" aria-label="Quick tour">
+        <p class="eyebrow" id="tour-step-label"></p>
+        <h2 id="tour-title"></h2>
+        <p id="tour-text"></p>
+        <div class="tour-actions">
+          <button class="text-button" id="tour-skip" type="button">Skip</button>
+          <button class="primary-button" id="tour-next" type="button">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <dialog id="group-dialog" aria-labelledby="group-dialog-title">
+      <div class="group-form">
+        <button class="icon-button dialog-form-close" id="group-dialog-close" type="button" aria-label="Close team dialog" title="Close"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"></path></svg></button>
+        <p class="eyebrow">Shared shortlist</p><h2 id="group-dialog-title">Team up.</h2>
+        <p>Create a team and share its name and password with your teammates, or join a team that already exists. A team holds up to 6 members including the team lead.</p>
+
+        <div class="team-panel" id="team-panel" hidden>
+          <div class="team-panel-head">
+            <strong id="team-panel-name"></strong>
+            <span class="team-count" id="team-panel-count"></span>
+          </div>
+          <ul class="team-roster" id="team-roster"></ul>
+          <p class="team-full-note" id="team-full-note" hidden>Team is full — maximum 6 members allowed.</p>
+          <button class="text-button" id="team-leave" type="button">Leave this team</button>
+        </div>
+
+        <div class="segmented team-switch" id="team-mode" role="group" aria-label="Team action">
+          <button class="active" type="button" data-mode="create">Create team</button>
+          <button type="button" data-mode="join">Join team</button>
+        </div>
+        <p class="gate-status" id="team-status" role="status"></p>
+        <form id="team-create-form">
+          <label><span>Team name</span><input id="create-team-name" required minlength="3" maxlength="40" autocomplete="off" /></label>
+          <label><span>Team password</span><input id="create-team-password" type="password" required minlength="6" maxlength="72" autocomplete="new-password" /></label>
+          <label><span>Team lead name</span><input id="create-leader-name" required minlength="2" maxlength="40" autocomplete="name" /></label>
+          <button class="primary-button" type="submit">Create team</button>
+        </form>
+        <form id="team-join-form" hidden>
+          <label><span>Team name</span><input id="join-team-name" required minlength="3" maxlength="40" autocomplete="off" /></label>
+          <label><span>Team password</span><input id="join-team-password" type="password" required minlength="6" maxlength="72" autocomplete="current-password" /></label>
+          <label><span>Your name</span><input id="join-member-name" required minlength="2" maxlength="40" autocomplete="name" /></label>
+          <button class="primary-button" type="submit">Join team</button>
+        </form>
+      </div>
+    </dialog>
+
+    <dialog id="compare-dialog" aria-labelledby="compare-dialog-title">
+      <div class="group-form compare-form">
+        <button class="icon-button dialog-form-close" id="compare-dialog-close" type="button" aria-label="Close compare dialog" title="Close"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"></path></svg></button>
+        <p class="eyebrow">Problem comparison</p><h2 id="compare-dialog-title">Compare problem statements.</h2>
+        <p>Review the shortlisted problem statements side by side before your team decides.</p>
+        <div id="compare-content"><p>Pick 2 to 4 problem statements to compare.</p></div>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <div class="mobile-filter-backdrop" id="filter-backdrop" hidden></div>
+  </body>
+</html>

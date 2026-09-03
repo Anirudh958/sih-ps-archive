@@ -94,12 +94,16 @@ If a statement is filed under an obviously wrong theme, that's the source's erro
 it stays. The archive's value is that it's faithful. Note the oddity in your PR
 description instead.
 
-## Nothing but Markdown
+## Data contributions are Markdown only
 
-[`.gitignore`](.gitignore) deliberately blocks scripts, JSON, CSV, PDFs, scraped HTML
-and scratch data. If you wrote a scraper to generate your contribution, **keep the
-scraper in your own repo** and submit only the resulting `.md` files. Link your tooling
-in the PR description if it's useful to others.
+This repository also holds the web app that serves the archive, so `.gitignore` no
+longer blocks everything that isn't Markdown. The rule for *data* contributions is
+unchanged: a PR that adds or edits problem statements touches `YEAR/SIHxxxxx.md` and
+nothing else. Scraped HTML, JSON, CSV, PDFs and scratch data still stay out.
+
+If you wrote a scraper to generate your contribution, **keep the scraper in your own
+repo** and submit only the resulting `.md` files. Link your tooling in the PR
+description if it's useful to others.
 
 ## Submitting
 
@@ -131,6 +135,35 @@ done
 In the PR description, state **where the text came from** — the sih.gov.in listing, an
 official PDF export, another archive. Provenance is the whole point of this repository;
 a contribution without a source can't be verified and probably won't be merged.
+
+## Code contributions
+
+The app that serves the archive at [sih.saireddy.dev](https://sih.saireddy.dev) lives
+here too — `api/`, `lib/`, `index.html`, `app.js`, `styles.css`. Setup and deployment
+are in [docs/APP.md](docs/APP.md), the design in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+```bash
+npm install
+cp .env.example .env    # Supabase credentials, for accounts and teams only
+npm run dev             # http://localhost:3000
+npm run check           # offline checks; must pass before you open a PR
+```
+
+Conventions:
+
+- Plain Node.js ESM. No build step, no framework. Keep it that way unless the change
+  is impossible without one.
+- The statements are read from `2026/*.md` by `lib/statements.js`. Nothing else may
+  read the Markdown, and no database holds statement text.
+- Security boundaries live in `supabase/schema.sql` and `lib/`, not in handlers. Team
+  limits are database constraints, not handler checks.
+- Match the surrounding style: comment *why*, not *what*.
+
+Open the PR against `main`, describe what changed and why, and link any related issue.
+For bugs, [open an issue](https://github.com/DeadIndian/sih-ps-archive/issues) with the
+exact command or URL, expected behaviour and actual behaviour. Never paste secrets or
+`.env` contents into an issue.
 
 ## Attribution
 
