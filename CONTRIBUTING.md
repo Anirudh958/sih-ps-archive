@@ -66,6 +66,11 @@ saves the next person the search.
 <URL, if the sponsor supplied one>
 ```
 
+2024 and 2025 files may also end with a grand finale result block — a
+`<!-- winners:grand-finale -->` marker, then `## Winner` (or `## Winners` for a joint
+win). That comes from the published results, not from you: leave it alone in a file
+that has one, and don't add one to a file that doesn't.
+
 **Rules that matter:**
 
 - The `H1` is `# <ID> — <official title>`, separated by an **em dash** (`—`), not a hyphen.
@@ -76,8 +81,8 @@ saves the next person the search.
   Check an existing file rather than inventing a spelling.
 - `## Problem Statement` is expected but **not** universal — three 2026 files legitimately
   lack it because it was published that way. Don't invent one to fill the hole.
-- Sections beyond these five don't belong. Don't add `## Notes`, `## Analysis`, or
-  your own commentary.
+- Sections beyond the four above — plus the published winner block — don't belong. Don't
+  add `## Notes`, `## Analysis`, or your own commentary.
 
 ## Transcribe, don't improve
 

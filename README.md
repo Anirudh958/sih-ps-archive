@@ -6,9 +6,10 @@
 
 The official SIH portal publishes its problem statements, then replaces them next season.
 This repository keeps them. **607 problem statements** from **82 organisations**,
-**189,240 words** of ministry-authored engineering briefs, frozen as `SIHxxxx.md`
-and greppable from your terminal.
+**214,636 words** of ministry-authored engineering briefs, plus the **455 grand finale
+winning teams** for 2024 and 2025 — frozen as `SIHxxxx.md` and greppable from your terminal.
 
+[![Browse Online](https://img.shields.io/badge/Browse%20Online-sih.saireddy.dev-f97316?style=for-the-badge)](https://sih.saireddy.dev/)
 [![Problem Statements](https://img.shields.io/badge/problem%20statements-607-0f766e?style=for-the-badge)](#-whats-inside)
 [![Years](https://img.shields.io/badge/years-2024%20·%202025%20·%202026-1d4ed8?style=for-the-badge)](#-whats-inside)
 [![Format](https://img.shields.io/badge/format-Markdown-000000?style=for-the-badge&logo=markdown&logoColor=white)](#-anatomy-of-a-problem-statement)
@@ -16,15 +17,17 @@ and greppable from your terminal.
 [![Software](https://img.shields.io/badge/Software-440-2563eb?style=flat-square)](#-the-softwarehardware-split)
 [![Hardware](https://img.shields.io/badge/Hardware-167-7c3aed?style=flat-square)](#-the-softwarehardware-split)
 [![Themes](https://img.shields.io/badge/themes-18-be185d?style=flat-square)](#-themes-across-three-years)
+[![Finale Winners](https://img.shields.io/badge/finale%20winners-455-d97706?style=flat-square)](#-who-won)
 [![Text](https://img.shields.io/badge/text-original%20authors-64748b?style=flat-square)](ATTRIBUTION.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-16a34a?style=flat-square)](CONTRIBUTING.md)
-[![Stars](https://img.shields.io/github/stars/DeadIndian/sih-ps-archive?style=flat-square&color=eab308)](https://github.com/DeadIndian/sih-ps-archive/stargazers)
+[![Stars](https://img.shields.io/github/stars/Vigneshrdy/sih-ps-archive?style=flat-square&color=eab308)](https://github.com/Vigneshrdy/sih-ps-archive/stargazers)
 
 **[→ Browse the 2026 statements online](https://sih.saireddy.dev)** — search, filter and
 shortlist them in a browser, with six-member teams, private notes and per-team votes.
 The app lives in this repository and reads these Markdown files directly. See
 [docs/APP.md](docs/APP.md).
 
+[Live Site](https://sih.saireddy.dev/) ·
 [What's Inside](#-whats-inside) ·
 [Search Recipes](#-search-recipes) ·
 [Coverage & Gaps](#-coverage--gaps) ·
@@ -47,11 +50,11 @@ The app lives in this repository and reads these Markdown files directly. See
 - [Themes across three years](#-themes-across-three-years)
 - [The software/hardware split](#-the-softwarehardware-split)
 - [Who's asking](#-whos-asking)
+- [Who won](#-who-won)
 - [Coverage & gaps](#-coverage--gaps)
 - [Data caveats](#-data-caveats)
 - [Contributing](#-contributing)
 - [Attribution & reuse](#-attribution--reuse)
-- [Maintainer](#-maintainer)
 
 ---
 
@@ -92,8 +95,11 @@ sih-ps-archive/
 | **2024** | **246** | `SIH1524`–`SIH1782` | 178 | 68 | 18 | ⚠️ 13 IDs missing |
 | **Total** | **607** | — | **440** | **167** | **18** | ~96% of known IDs |
 
-Every file is UTF-8 Markdown, `2.8 MB` on disk total, average ~312 words per statement.
-The longest is [`2024/SIH1704.md`](2024/SIH1704.md) at 2,225 words.
+The 2024 and 2025 files also carry the grand finale result for the statement — see
+[Who won](#-who-won). 2026 has not been judged yet.
+
+Every file is UTF-8 Markdown, `2.8 MB` on disk total, average ~354 words per statement.
+The longest is [`2024/SIH1704.md`](2024/SIH1704.md) at 2,281 words.
 
 ## 🔬 Anatomy of a problem statement
 
@@ -136,6 +142,8 @@ A scalable AI-based software platform with:
 | :--- | ---: | :--- |
 | `## Problem Statement` | 604 | The full brief — background, description, scope |
 | `## Expected Solution` | 299 | Deliverable spec, when the sponsor supplied one |
+| `## Winner` | 285 | The grand finale team that won this statement — see [Who won](#-who-won) |
+| `## Winners` | 87 | Same, when the statement was won jointly |
 | `## Dataset` | 71 | Real dataset URLs. Mostly the 2024 satellite/remote-sensing set |
 | `## Expected Solutions` | 15 | Same thing, plural, as-published — see [caveats](#-data-caveats) |
 
@@ -181,6 +189,18 @@ grep -ril 'organization:\*\* .*isro' 2024 2025 2026   # 21 hits — two spelling
 
 ```bash
 grep -h -A2 '^## Dataset' 2024/*.md 2025/*.md 2026/*.md | grep -o 'http[^ ]*'
+```
+
+**Which statements were actually won at the grand finale, and by whom:**
+
+```bash
+grep -h -e '^# ' -e '^- \*\*Team Name:' -e '^- \*\*Institute:' 2025/*.md
+```
+
+**Find the statement a winning team took home:**
+
+```bash
+grep -rl 'Team Name:\*\* MECHSPACE' 2024 2025
 ```
 
 **Rank themes by volume for a year:**
@@ -285,6 +305,47 @@ list is dominated by earth-observation and remote-sensing bodies (MoES, NTRO, IS
 Jal Shakti account for another 122), which is also why the 71 `## Dataset` sections
 are mostly satellite catalogues.
 
+## 🏆 Who won
+
+For 2024 and 2025 the archive records the outcome as well as the brief: **455 winning
+teams** across **366 statements**, as published in the grand finale results.
+
+| Year | Statements with a result | Winning teams | Sole | Joint | Prize money recorded |
+| :--- | ---: | ---: | ---: | ---: | :--- |
+| **2026** | — | — | — | — | Not judged yet |
+| **2025** | 134 of 135 | 160 | 108 | 52 | ✅ `₹2,01,00,000` |
+| **2024** | 232 of 246 | 295 | 171 | 124 | ❌ not published |
+
+Each result sits at the end of the statement file behind a
+`<!-- winners:grand-finale -->` marker, so a parser can find it or strip it without
+touching the brief:
+
+```markdown
+<!-- winners:grand-finale -->
+
+## Winner
+
+- **Team Name:** CORE_401
+- **Team Leader:** Shubh Sharma
+- **Team ID:** 52360
+- **Idea ID:** 59902
+- **Institute:** Acropolis Institute of Technology & Research, Indore
+- **Winning Status:** Winner
+- **Prize Money:** ₹1,50,000
+- **Nodal Center:** North-Eastern Hill University, Meghalaya
+```
+
+`## Winners` (plural) is used when a statement was won jointly; each team then gets its
+own `### Joint Winner N` block. The purse per statement is fixed and a joint win splits
+it — every 2025 sole winner took `₹1,50,000`, every joint winner exactly half of that.
+The 455 teams came through **87 nodal centres**, and 6 statements record in plain English
+that no winner was declared at all.
+
+The two editions were published with different fields: 2024 carries `Institute ID`,
+`Institute City` and `Institute State` but no prize money; 2025 carries `Prize Money`
+and drops the institute location. Read the [caveats](#-data-caveats) before you join
+on any of it.
+
 ## 🕳️ Coverage & gaps
 
 This archive is honest about what it doesn't have. **20 known IDs are absent.**
@@ -318,6 +379,15 @@ preserved rather than silently corrected. Read this before you build on the corp
   straight to `## Expected Solution`. That's how they were published. Any parser
   that assumes the section exists will throw on exactly these three.
 - **`## Expected Solutions` (plural) appears in 15 files.** Match both spellings.
+- **`## Winner` and `## Winners` are both real, and the difference is load-bearing.**
+  Singular means one team, plural means joint winners split into `### Joint Winner N`
+  blocks. 6 files carry the heading with a sentence saying no winner was declared —
+  match on `- **Team Name:**`, not on the heading, if you want teams.
+- **Winner fields differ between 2024 and 2025.** 2024 has `Institute ID`,
+  `Institute City`, `Institute State` and no prize money; 2025 has `Prize Money` and no
+  institute location. Neither year's `Institute` string is a normalised key either.
+- **2026 has no winner data at all** — the edition has not been judged. Absence of a
+  `## Winner` section in a 2026 file means nothing.
 - **Themes are occasionally mislabelled at the source.** `2026/SIH26031.md` is an
   onion-grading computer-vision problem filed under *Fitness & Sports*. Not a
   transcription error — reproduced faithfully. Don't trust `Theme` as ground truth
@@ -370,17 +440,11 @@ applied. If you redistribute, carry that attribution forward.
 
 Corrections to the provenance record are as welcome as corrections to the data.
 
-## 👥 Maintainer
-
-**[@DeadIndian](https://github.com/DeadIndian)** — corrections and additions welcome via
-[issues](https://github.com/DeadIndian/sih-ps-archive/issues) or
-[pull requests](https://github.com/DeadIndian/sih-ps-archive/pulls).
-
 ---
 
 <div align="center">
 
-**607 problem statements. 82 organisations. 3 editions. 0 build steps.**
+**607 problem statements. 455 winning teams. 3 editions. 0 build steps.**
 
 <sub>Not affiliated with Smart India Hackathon, AICTE, or the Government of India.<br>
 An independent archive of publicly published material.</sub>
