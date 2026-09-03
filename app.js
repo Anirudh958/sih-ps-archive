@@ -145,6 +145,10 @@ function applyMetadata(metadata) {
   $("#total-count").textContent = metadata.stats.total;
   $("#theme-count").textContent = metadata.stats.themes;
   $("#org-count").textContent = metadata.stats.orgs;
+  // The PS-range inputs were hardcoded to 226 and silently refused the last three
+  // statements, so take the ceiling from the dataset itself.
+  for (const input of [$("#ps-from"), $("#ps-to")]) input.max = metadata.stats.total;
+  $("#ps-to").placeholder = metadata.stats.total;
   state.filtersLoaded = true;
   syncControls();
 }
