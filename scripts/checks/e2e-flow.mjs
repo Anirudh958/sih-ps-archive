@@ -133,14 +133,18 @@ async function main() {
   const victim = await createConfirmedUser("victim");
   const owner = await createConfirmedUser("owner");
   const logoutOnly = await createConfirmedUser("logout");
-  const quotaUser = await createConfirmedUser("quota");
   const members = await Promise.all([1, 2, 3, 4, 5, 6].map((index) => createConfirmedUser(`member${index}`)));
   const outsider = await createConfirmedUser("outsider");
 
   const guest = new Client("guest");
-  await expectStatus(guest.request("/api/filters", { origin: false }), 401, "filters blocks unauthenticated callers");
-  await expectStatus(guest.request("/api/problems?page=1", { origin: false }), 401, "problem list blocks unauthenticated callers");
-  await expectStatus(guest.request("/api/problems/SIH26011", { origin: false }), 401, "problem detail blocks unauthenticated callers");
+  // The statements are public and come from the Markdown in 2026/, so a caller with no
+  // account gets all of them in one response. Only the account-backed routes are closed.
+  const publicList = await expectStatus(guest.request("/api/problems", { origin: false }), 200, "problem list is public");
+  assert.equal(publicList.body.total, 226, "problem count stays at 226");
+  assert.equal(publicList.body.items.length, 226, "the whole list ships in one response");
+  assert.equal(publicList.body.items[0].ps_number, "SIH26001", "the list starts at the first statement");
+  assert.match(publicList.headers.get("cache-control") || "", /s-maxage=3600/, "the public list is CDN-cached");
+  await expectStatus(guest.request("/api/reviews", { origin: false }), 401, "reviews block unauthenticated callers");
   await expectStatus(guest.request("/api/team", { origin: false }), 401, "team endpoint blocks unauthenticated callers");
   await expectStatus(guest.request("/api/session/refresh", { method: "POST" }), 401, "refresh blocks missing cookie");
 
@@ -176,28 +180,6 @@ async function main() {
   logoutClient.accessToken = "";
   await expectStatus(logoutClient.request("/api/auth", { method: "POST", json: { action: "logout" } }), 200, "logout succeeds with only the refresh cookie");
   await expectStatus(stolenRefreshClient.request("/api/session/refresh", { method: "POST" }), 401, "refresh token is revoked server-side on refresh-only logout");
-
-  const filters = await expectStatus(ownerClient.request("/api/filters", { origin: false }), 200, "filters load");
-  assert.equal(filters.body.stats.total, 226, "problem count stays at 226");
-
-  const list = await expectStatus(ownerClient.request("/api/problems?page=1", { origin: false }), 200, "problem list loads");
-  assert.equal(list.body.pageSize, 12, "page size stays at 12");
-  assert.equal(list.body.items.length, 12, "first page returns 12 statements");
-  assert.equal(list.body.total, 226, "list total stays at 226");
-
-  const detail = await expectStatus(ownerClient.request("/api/problems/SIH26011", { origin: false }), 200, "problem detail loads");
-  const stored = await sql`SELECT data FROM problem_statements WHERE ps_number = 'SIH26011'`;
-  assert.deepEqual(detail.body, stored[0].data, "detail response matches stored JSON exactly");
-
-  const quotaClient = new Client("quota");
-  await expectStatus(quotaClient.login(quotaUser.email), 200, "quota test user can sign in");
-  const quotaIds = (await sql`SELECT ps_number FROM problem_statements ORDER BY ps_number LIMIT 65`).map((row) => row.ps_number);
-  for (const psNumber of quotaIds.slice(0, 55)) {
-    await sql`INSERT INTO statement_accesses (session_id, ps_number) VALUES (${quotaClient.id}, ${psNumber}) ON CONFLICT DO NOTHING`;
-  }
-  const quotaResults = await Promise.all(quotaIds.slice(55).map((psNumber) => quotaClient.request(`/api/problems/${psNumber}`, { origin: false })));
-  assert.equal(quotaResults.filter((result) => result.status === 200).length, 5, "parallel first-time detail opens stop at 60 total views");
-  assert.equal(quotaResults.filter((result) => result.status === 429).length, 5, "parallel first-time detail opens reject the overflow");
 
   const teamName = `Flow Team ${crypto.randomBytes(3).toString("hex")}`;
   const teamPassword = "TeamPass123!";
@@ -313,7 +295,7 @@ async function main() {
   const tokenBeforeLogout = outsiderClient.accessToken;
   const logout = await expectStatus(outsiderClient.request("/api/auth", { method: "POST", json: { action: "logout" } }), 200, "logout succeeds");
   assert.equal(logout.body.ok, true, "logout acknowledges success");
-  const oldTokenBlocked = await outsiderClient.request("/api/filters", { origin: false, headers: { Authorization: `Bearer ${tokenBeforeLogout}` } });
+  const oldTokenBlocked = await outsiderClient.request("/api/reviews", { origin: false, headers: { Authorization: `Bearer ${tokenBeforeLogout}` } });
   assert.equal(oldTokenBlocked.status, 401, "pre-logout token stops working");
   const refreshAfterLogout = await outsiderClient.request("/api/session/refresh", { method: "POST" });
   assert.equal(refreshAfterLogout.status, 401, "logout clears the refresh cookie");

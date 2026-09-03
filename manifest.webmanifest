@@ -1,7 +1,7 @@
 {
   "name": "SIH 2026 Selection Desk",
   "short_name": "SIH Desk",
-  "description": "Search, filter and shortlist all 229 official Smart India Hackathon 2026 problem statements.",
+  "description": "Search, filter and shortlist all 226 official Smart India Hackathon 2026 problem statements.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f7f7",

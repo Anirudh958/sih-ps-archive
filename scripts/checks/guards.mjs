@@ -41,18 +41,32 @@ const html = fs.readFileSync(new URL("../../index.html", import.meta.url), "utf8
 assert.doesNotMatch(html, /<script(?![^>]*\b(?:src=|type="application\/ld\+json"))/, "no inline executable scripts (CSP script-src 'self' blocks them)");
 assert.match(html, /<script src="\/theme-init\.js"><\/script>/, "theme restored from an external script before paint");
 
-// The statement list and detail pages both read one bulk response from Supabase.
-// Fetching a static /ps.json instead silently emptied the site, because ps.json is
-// gitignored and therefore never deployed.
+// The statements come from this repository's own Markdown, not from Postgres. Fetching
+// a static /ps.json instead silently emptied the site once, because ps.json is
+// gitignored and therefore never deployed -- the same failure mode is why the parser
+// reads committed files.
 const app = fs.readFileSync(new URL("../../app.js", import.meta.url), "utf8");
-assert.match(app, /api\("\/api\/problems\?all=1"\)/, "statements load from the bulk endpoint");
+assert.match(app, /fetch\("\/api\/problems"\)/, "statements load from the public bulk endpoint");
+assert.doesNotMatch(app, /api\("\/api\/problems/, "the list is public: no bearer token, so a cold anonymous load cannot trip the refresh path");
 assert.doesNotMatch(app, /fetch\("\/ps\.json"\)/, "no dependency on the undeployed ps.json");
+
+// One reader of the Markdown, and it is the only place that knows the file layout.
 const listApi = fs.readFileSync(new URL("../../api/problems/index.js", import.meta.url), "utf8");
-assert.match(listApi, /if \(request\.query\.all\)/, "bulk branch served by the list endpoint");
-assert.match(listApi, /allStatements \|\|=/, "bulk response cached for the function's lifetime");
+const sitemap = fs.readFileSync(new URL("../../api/sitemap.js", import.meta.url), "utf8");
+const statement = fs.readFileSync(new URL("../../api/statement.js", import.meta.url), "utf8");
+const schema = fs.readFileSync(new URL("../../supabase/schema.sql", import.meta.url), "utf8");
+for (const [name, source] of [["problems", listApi], ["sitemap", sitemap], ["statement", statement]]) {
+  assert.match(source, /from "\.\.\/(\.\.\/)?lib\/statements\.js"/, `api/${name} reads statements through lib/statements.js`);
+  assert.doesNotMatch(source, /lib\/db\.js/, `api/${name} is public: no database, no session`);
+  assert.doesNotMatch(source, /2026\//, `api/${name} does not reach for the Markdown itself`);
+}
+for (const [name, source] of [["api/statement.js", statement], ["api/sitemap.js", sitemap], ["api/problems/index.js", listApi], ["supabase/schema.sql", schema]]) {
+  assert.doesNotMatch(source, /problem_statements|statement_accesses/, `${name} no longer references the dropped tables`);
+}
+assert.match(listApi, /s-maxage=3600/, "the one identical-for-everyone API response is CDN-cached");
 
 // api/statement.js rewrites the shell's metadata by matching exact tags in
-// index.html. A reformat there would silently serve homepage metadata on all 229
+// index.html. A reformat there would silently serve homepage metadata on all 226
 // statement pages, so every anchor it depends on is asserted here.
 for (const anchor of [
   '<link rel="canonical" href="https://sih.saireddy.dev/" />',
@@ -65,11 +79,48 @@ for (const anchor of [
 ]) assert.ok(html.includes(anchor), `index.html keeps the anchor api/statement.js rewrites: ${anchor}`);
 assert.equal((html.match(/<h1[\s>]/g) || []).length, 1, "exactly one h1 in the shell");
 
-const statement = fs.readFileSync(new URL("../../api/statement.js", import.meta.url), "utf8");
+// The navbar carries the work: search and the filter trigger live inside <header>, not
+// inside #list-view. Two things depend on that. showGate() hides #navbar to pull those
+// controls out of the tab order behind the gate, and the tour spotlights #filter-button
+// because it is positioned from a live rect and the drawer's own controls are offscreen.
+const navbar = html.slice(html.indexOf('<header class="navbar"'), html.indexOf("</header>"));
+for (const id of ['id="search"', 'id="filter-button"', 'id="join-group-button"']) {
+  assert.ok(navbar.includes(id), `the navbar carries ${id}`);
+}
+assert.match(app, /\$\("#navbar"\)\.hidden = true/, "showGate() hides the navbar, so search is not tabbable behind the gate");
+
+// No build step, so a renamed id in index.html is only caught at runtime -- and
+// bindEvents() runs at boot, where addEventListener on null blanks the whole page.
+// Everything it reaches for must exist in the shell. Ids created by detailTemplate()
+// are not checked here because they do not exist until a statement is opened.
+const shellIds = new Set([...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
+const bindEvents = app.slice(app.indexOf("function bindEvents"), app.indexOf("function openStatement"));
+for (const [, id] of bindEvents.matchAll(/\$\("#([\w-]+)"\)/g)) {
+  assert.ok(shellIds.has(id), `bindEvents() binds #${id}, which index.html must define`);
+}
+
+// .detail-bar sticks directly beneath the sticky navbar. Two literals would drift apart
+// at the breakpoint where the bar wraps to two rows, so both read one variable.
+const css = fs.readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
+for (const rule of [/^\.navbar \{[^}]*height: var\(--nav-h\)/m, /^\.detail-bar \{[^}]*top: var\(--nav-h\)/m, /^\.filters \{[^}]*top: var\(--nav-h\)/m]) {
+  assert.match(css, rule, "the sticky bars share --nav-h instead of repeating a magic number");
+}
+
 assert.match(statement, /s-maxage=3600/, "statement pages are CDN-cached, not rendered per crawl");
 const vercel = JSON.parse(fs.readFileSync(new URL("../../vercel.json", import.meta.url), "utf8"));
 assert.deepEqual(vercel.rewrites.map((r) => r.destination),
   ["/api/statement", "/api/statement?id=:id", "/api/sitemap"], "public routes reach the renderers");
-assert.equal(vercel.functions["api/statement.js"].includeFiles, "index.html", "the shell ships with the function that reads it");
+
+// includeFiles is what puts the Markdown inside the deployed function. Without it the
+// functions build fine and every statement page 404s in production only.
+assert.equal(vercel.functions["api/statement.js"].includeFiles, "{index.html,2026/**}", "the shell and the statements ship with the function that reads both");
+for (const fn of ["api/problems/index.js", "api/sitemap.js"]) {
+  assert.equal(vercel.functions[fn].includeFiles, "2026/**", `${fn} ships with the statements it parses`);
+}
+
+// Vercel applies the last matching header rule per key, so the public cache rule for
+// the statement list is only effective while it sits after the blanket /api/ no-store.
+const sources = vercel.headers.map((rule) => rule.source);
+assert.ok(sources.indexOf("/api/problems") > sources.indexOf("/api/(.*)"), "the /api/problems cache rule overrides the blanket no-store, not the reverse");
 
 console.log("guard checks passed");

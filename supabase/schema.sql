@@ -1,15 +1,10 @@
 -- Run once in Supabase Dashboard -> SQL Editor.
 -- Vercel functions use the private transaction-pooler DATABASE_URL.
-CREATE TABLE IF NOT EXISTS problem_statements (
-  ps_number TEXT PRIMARY KEY, sno INTEGER NOT NULL, title TEXT NOT NULL, org TEXT NOT NULL,
-  category TEXT NOT NULL, theme TEXT NOT NULL, summary TEXT NOT NULL, innovation TEXT NOT NULL,
-  effort TEXT NOT NULL, verdict TEXT NOT NULL, verdict_score INTEGER NOT NULL DEFAULT 0,
-  competition_score INTEGER NOT NULL DEFAULT 9, has_dataset BOOLEAN NOT NULL DEFAULT FALSE,
-  search_text TSVECTOR NOT NULL, data JSONB NOT NULL
-);
-CREATE INDEX IF NOT EXISTS problem_statements_search_idx ON problem_statements USING GIN (search_text);
-CREATE INDEX IF NOT EXISTS problem_statements_filters_idx ON problem_statements (category, theme, effort, innovation, verdict);
-
+--
+-- The problem statements are NOT here. They are the Markdown in 2026/, parsed by
+-- lib/statements.js, and this database holds only what genuinely needs a database:
+-- accounts, teams, reviews, votes and comments. ps_number is therefore a plain TEXT
+-- column with no foreign key -- the archive, not Postgres, decides which ids exist.
 CREATE TABLE IF NOT EXISTS browse_sessions (
   id UUID PRIMARY KEY, refresh_hash TEXT UNIQUE NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   rotated_at TIMESTAMPTZ, expires_at TIMESTAMPTZ NOT NULL, revoked_at TIMESTAMPTZ,
@@ -54,18 +49,13 @@ CREATE TABLE IF NOT EXISTS throttle_buckets (
 );
 CREATE TABLE IF NOT EXISTS group_comments (
   id BIGSERIAL PRIMARY KEY, group_key TEXT NOT NULL,
-  ps_number TEXT NOT NULL REFERENCES problem_statements(ps_number) ON DELETE CASCADE,
+  ps_number TEXT NOT NULL,
   display_name TEXT NOT NULL, body TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 2000),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE TABLE IF NOT EXISTS statement_accesses (
-  session_id UUID NOT NULL REFERENCES browse_sessions(id) ON DELETE CASCADE,
-  ps_number TEXT NOT NULL REFERENCES problem_statements(ps_number) ON DELETE CASCADE,
-  first_accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (session_id, ps_number)
-);
 CREATE TABLE IF NOT EXISTS user_problem_reviews (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  ps_number TEXT NOT NULL REFERENCES problem_statements(ps_number) ON DELETE CASCADE,
+  ps_number TEXT NOT NULL,
   reading_status TEXT CHECK (reading_status IN ('to-read', 'read')),
   decision_status TEXT CHECK (decision_status IN ('keep', 'accept', 'reject')),
   private_note TEXT NOT NULL DEFAULT '' CHECK (char_length(private_note) <= 4000),
@@ -75,7 +65,7 @@ CREATE TABLE IF NOT EXISTS user_problem_reviews (
 CREATE TABLE IF NOT EXISTS team_problem_votes (
   team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  ps_number TEXT NOT NULL REFERENCES problem_statements(ps_number) ON DELETE CASCADE,
+  ps_number TEXT NOT NULL,
   vote TEXT NOT NULL CHECK (vote IN ('yes', 'maybe', 'no')),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (team_id, user_id, ps_number)
@@ -85,15 +75,13 @@ CREATE INDEX IF NOT EXISTS group_comments_lookup_idx ON group_comments (group_ke
 CREATE INDEX IF NOT EXISTS user_problem_reviews_lookup_idx ON user_problem_reviews (user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS team_problem_votes_lookup_idx ON team_problem_votes (team_id, ps_number, updated_at DESC);
 
-ALTER TABLE problem_statements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE browse_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_rate_buckets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE statement_accesses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_problem_reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_problem_votes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE throttle_buckets ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON problem_statements, browse_sessions, api_rate_buckets, group_comments, statement_accesses, user_problem_reviews, team_problem_votes, teams, team_members, throttle_buckets FROM anon, authenticated;
+REVOKE ALL ON browse_sessions, api_rate_buckets, group_comments, user_problem_reviews, team_problem_votes, teams, team_members, throttle_buckets FROM anon, authenticated;
 REVOKE ALL ON SEQUENCE group_comments_id_seq FROM anon, authenticated;

@@ -22,6 +22,9 @@
   --red: #b42d37;
   --red-soft: #ffe4e5;
   --radius: 6px;
+  /* The navbar is sticky and .detail-bar sticks directly beneath it, so both need the
+     same number. Redeclared in the 760px query where the navbar wraps to two rows. */
+  --nav-h: 68px;
   --star-border: #e0aa24;
   --star-ink: #a86c00;
   --star-bg: #fff4cc;
@@ -81,11 +84,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .auth-form label span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .auth-form input { width: 100%; height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--radius); }
 .auth-form .primary-button { width: 100%; margin-top: 8px; padding: 13px 18px; }
-.group-bar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px clamp(20px, 5vw, 80px); border-bottom: 1px solid var(--line); background: var(--bar); }
-.group-bar > div { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
-.group-bar strong { font: 700 15px Georgia, serif; }
-.group-bar #group-status { color: var(--muted); font-size: 12px; }
-.group-bar-actions { display: flex; gap: 16px; flex-shrink: 0; }
 .range-input { width: 100%; height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--ink); background: var(--surface); }
 .group-form { width: min(440px, calc(100vw - 32px)); padding: 32px; border: 0; position: relative; }
 .group-form h2 { margin: 0 0 12px; font: 700 36px Georgia, serif; }
@@ -115,41 +113,50 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .comment-meta { color: var(--muted); font-size: 11px; }
 .comment p { margin: 5px 0 0; color: var(--body-ink); font: 14px/1.5 Georgia, serif; white-space: pre-wrap; }
 
-.masthead { height: 76px; padding: 0 clamp(20px, 5vw, 80px); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 94%, transparent); position: sticky; top: 0; z-index: 20; backdrop-filter: blur(12px); }
-.brand { display: flex; gap: 12px; align-items: center; color: inherit; text-decoration: none; }
+/* One bar. It carries the work (search, filters) rather than only branding, because
+   this is a tool to operate, not a page to be persuaded by. */
+.navbar { height: var(--nav-h); display: flex; align-items: center; gap: clamp(14px, 2.5vw, 34px); padding: 0 clamp(18px, 4vw, 56px); border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 94%, transparent); position: sticky; top: 0; z-index: 40; backdrop-filter: blur(12px); }
+.brand { display: flex; gap: 12px; align-items: center; flex-shrink: 0; color: inherit; text-decoration: none; }
 .brand-mark { width: 38px; height: 38px; display: block; border-radius: 8px; object-fit: cover; }
 .gate-panel .brand-mark { width: 64px; height: 64px; }
 .brand strong, .brand small { display: block; line-height: 1; }
 .brand strong { font-size: 19px; letter-spacing: .08em; }
 .brand small { margin-top: 5px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
-.deadline { display: flex; align-items: baseline; gap: 12px; font-size: 12px; }
-.masthead-actions { display: flex; align-items: center; gap: 16px; }
-.deadline span { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
-.deadline strong { color: var(--blue); }
+
+/* Search is the one promoted element in the bar: it takes every pixel the brand and
+   the account controls do not need. */
+.nav-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.nav-search .search-input-wrap { flex: 1; min-width: 0; max-width: 640px; }
+.filter-button { flex-shrink: 0; height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--chip-ink); background: var(--surface); font-size: 13px; }
+.filter-button svg { width: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.filter-button[aria-expanded="true"] { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+.filter-badge { min-width: 19px; height: 19px; display: grid; place-items: center; border-radius: 10px; color: white; background: var(--blue); font-size: 10px; font-weight: 700; }
+.nav-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+/* A team name is unbounded user text; the full value stays in the title attribute. */
+.nav-account { max-width: 22ch; height: 38px; padding: 0 14px; border: 1px solid var(--blue); border-radius: var(--radius); color: var(--blue); background: var(--blue-soft); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#logout-button { flex-shrink: 0; }
 
 main { max-width: 1600px; margin: auto; }
-.intro { padding: clamp(48px, 7vw, 96px) clamp(20px, 5vw, 80px) clamp(42px, 6vw, 72px); display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr); gap: 8vw; align-items: end; position: relative; overflow: hidden; }
-.intro::after { content: "226"; position: absolute; right: 2vw; bottom: -55px; z-index: -1; color: transparent; -webkit-text-stroke: 1px #dfe3e5; font: 700 clamp(150px, 22vw, 340px)/.7 Georgia, serif; }
+/* A working header, not a hero: one line of orientation, then straight into results. */
+.page-head { padding: clamp(26px, 3.5vw, 40px) clamp(20px, 4vw, 56px) clamp(20px, 2.5vw, 28px); }
+.page-head h1 { margin: 0; max-width: 900px; font: 700 clamp(28px, 3.4vw, 42px)/1.08 Georgia, "Times New Roman", serif; }
+.page-head p { margin: 12px 0 0; max-width: 720px; color: var(--muted); font: 15px/1.55 Georgia, serif; }
+.page-head p strong { color: var(--ink); }
 .eyebrow { margin: 0 0 18px; color: var(--blue); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .16em; }
-h1 { margin: 0; max-width: 850px; font: 700 clamp(46px, 6.2vw, 94px)/.9 Georgia, "Times New Roman", serif; letter-spacing: 0; }
-h1 em { color: var(--blue); font-weight: 400; }
-.intro-note { max-width: 460px; padding-bottom: 5px; }
-.intro-note > p { margin: 0 0 28px; font: 18px/1.55 Georgia, serif; }
-.dataset-summary { display: flex; border-top: 1px solid var(--ink); padding-top: 14px; gap: 24px; }
-.dataset-summary span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
-.dataset-summary strong { display: block; margin-bottom: 4px; color: var(--ink); font: 700 26px/1 Georgia, serif; }
 
-.workspace { display: grid; grid-template-columns: 310px minmax(0, 1fr); min-height: 70vh; border-top: 1px solid var(--line); }
-.filters { padding: 28px 28px 64px clamp(20px, 5vw, 80px); border-right: 1px solid var(--line); background: var(--panel); }
-.filter-heading, .filter-heading > div, .results-toolbar, .results-toolbar > div, .toolbar-actions { display: flex; align-items: center; }
+/* The filter panel is the same drawer at every width, so the results list keeps the
+   full page instead of half of it, and there is one open/close path to reason about. */
+.workspace { min-height: 70vh; border-top: 1px solid var(--line); }
+.filters { width: min(360px, 88vw); height: calc(100dvh - var(--nav-h)); position: fixed; left: 0; top: var(--nav-h); z-index: 45; overflow: auto; padding: 24px 24px 60px; border-right: 1px solid var(--line); background: var(--panel); transform: translateX(-105%); transition: transform .2s ease; box-shadow: 18px 0 50px #10182433; }
+.filters.open { transform: translateX(0); }
+.filter-heading, .filter-heading > div, .results-toolbar, .toolbar-actions { display: flex; align-items: center; }
 .filter-heading, .results-toolbar { justify-content: space-between; }
-.filter-heading { margin-bottom: 28px; }
+.filter-heading { margin-bottom: 24px; }
 .filter-heading-actions { gap: 10px; }
-.filter-close { display: none; }
-.section-index { margin-right: 10px; color: var(--blue); font: italic 700 12px Georgia, serif; }
+.filter-close { width: 34px; height: 34px; }
 .filter-heading h2 { margin: 0; font: 700 18px Georgia, serif; }
 .text-button { border: 0; padding: 4px 0; color: var(--muted); background: transparent; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
-.search-field > span:first-child, .filter-label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .11em; }
+.filter-label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .11em; }
 .search-input-wrap { height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); }
 .search-input-wrap svg { width: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .search-input-wrap input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; }
@@ -157,21 +164,20 @@ kbd { padding: 2px 6px; border: 1px solid var(--line); border-radius: 3px; color
 .filter-block { min-width: 0; margin: 22px 0 0; padding: 0; border: 0; }
 .filter-block select, .sort-control select { width: 100%; height: 40px; padding: 0 34px 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--ink); background: var(--surface); }
 .quick-picks { display: flex; flex-wrap: wrap; gap: 7px; }
-.quick-picks button, .active-filter, .mobile-filter-button { border: 1px solid var(--line-strong); border-radius: 999px; padding: 7px 10px; color: var(--chip-ink); background: transparent; font-size: 12px; }
+.quick-picks button, .active-filter { border: 1px solid var(--line-strong); border-radius: 999px; padding: 7px 10px; color: var(--chip-ink); background: transparent; font-size: 12px; }
 .quick-picks button.active { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
 .segmented { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--seg); }
 .segmented button { min-width: 0; border: 0; border-radius: 3px; padding: 7px 3px; color: var(--muted); background: transparent; font-size: 11px; }
 .segmented button.active { color: var(--ink); background: var(--surface); box-shadow: 0 1px 3px #9ba4aa66; }
 .filter-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-.results-panel { min-width: 0; padding: 28px clamp(20px, 5vw, 72px) 80px clamp(24px, 3.5vw, 56px); background: var(--surface); }
-.results-toolbar { min-height: 40px; }
+.results-panel { min-width: 0; padding: 4px clamp(20px, 4vw, 56px) 80px; background: var(--surface); }
+.results-toolbar { min-height: 40px; padding-top: 20px; }
 .results-toolbar p { margin: 0; color: var(--muted); font-size: 13px; }
 .results-toolbar p strong { color: var(--ink); font: 700 20px Georgia, serif; }
 .toolbar-actions { gap: 12px; }
 .sort-control { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
 .sort-control select { width: 164px; height: 36px; color: var(--ink); font-size: 12px; text-transform: none; letter-spacing: 0; }
-.mobile-filter-button { display: none; }
 .group-form.compare-form { width: min(1080px, calc(100vw - 32px)); max-width: none; }
 .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 22px; }
 .compare-card { min-width: 0; padding: 18px; border-top: 4px solid var(--blue); background: var(--paper); overflow-wrap: break-word; }
@@ -251,7 +257,7 @@ dialog::backdrop { background: #111923a8; backdrop-filter: blur(3px); }
 /* Full problem statement page. Nothing here clips: no max-height, no overflow
    hidden, no line clamp. The container grows with the content. */
 .detail-view { padding: 0 0 96px; }
-.detail-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px clamp(20px, 5vw, 80px); border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 76px; z-index: 10; flex-wrap: wrap; }
+.detail-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px clamp(20px, 4vw, 56px); border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: var(--nav-h); z-index: 10; flex-wrap: wrap; }
 .detail-bar > div { display: flex; align-items: center; gap: 12px; }
 .detail-bar #detail-number { color: var(--blue); font: italic 700 14px Georgia, serif; }
 .detail-bar .text-button { font-size: 13px; white-space: nowrap; }
@@ -288,7 +294,7 @@ details[open] > summary .collapse-hint::after { transform: rotate(0deg); }
 .tour-card > p:not(.eyebrow) { margin: 0; color: var(--body-ink); font: 14px/1.6 Georgia, serif; }
 .tour-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
 .tour-actions .primary-button { margin-top: 0; }
-.detail-body { padding: clamp(32px, 5vw, 56px) clamp(20px, 5vw, 80px) 0; }
+.detail-body { padding: clamp(32px, 5vw, 56px) clamp(20px, 4vw, 56px) 0; }
 .detail-eyebrow { margin: 0; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
 .detail-body h1, .detail-body h2 { max-width: 900px; margin: 10px 0 18px; font: 700 clamp(28px, 4vw, 48px)/1.05 Georgia, serif; }
 .detail-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 38px; }
@@ -328,37 +334,32 @@ details[open] > summary .collapse-hint::after { transform: rotate(0deg); }
 .plan-stage h4 { margin: 0 0 6px; font-size: 12px; }
 .plan-stage ul { margin-bottom: 0; }
 
-.mobile-filter-backdrop { position: fixed; inset: 0; z-index: 25; background: #11192399; }
+/* Sits under the navbar (z 40) so search stays usable while the drawer is open. */
+.mobile-filter-backdrop { position: fixed; inset: 0; z-index: 30; background: #11192359; }
 
 @media (max-width: 1000px) {
-  .intro { grid-template-columns: 1fr; gap: 32px; }
-  .intro-note { max-width: 600px; }
-  .workspace { grid-template-columns: 260px minmax(0, 1fr); }
-  .filters { padding-left: 24px; padding-right: 24px; }
   .problem-card { grid-template-columns: 88px minmax(0, 1fr) 42px; }
   .card-facts { grid-column: 2; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: -6px; }
   .fact { display: block; }
   .fact span:first-child { display: block; margin-bottom: 3px; }
 }
 
+@media (max-width: 860px) {
+  /* Below this the brand wordmark is the first thing search can have. */
+  .brand span { display: none; }
+}
+
 @media (max-width: 760px) {
-  .masthead { height: 64px; padding: 0 18px; }
-  .deadline span { display: none; }
-  .intro { padding: 42px 20px 42px; }
-  .intro::after { right: -30px; bottom: 5px; font-size: 170px; }
-  h1 { font-size: clamp(42px, 13vw, 64px); }
-  .intro-note > p { font-size: 16px; }
-  .workspace { display: block; }
-  .filters { width: min(350px, 88vw); height: 100dvh; position: fixed; left: 0; top: 0; z-index: 30; overflow: auto; padding: 24px 22px 50px; border-right: 0; transform: translateX(-105%); transition: transform .2s ease; box-shadow: 18px 0 50px #10182444; }
-  .filters.open { transform: translateX(0); }
-  .filters.open .filter-heading { position: relative; }
-  .filter-close { display: grid; width: 34px; height: 34px; }
-  .results-panel { padding: 24px 18px 60px; }
-  .group-bar { align-items: flex-start; padding: 12px 18px; }
-  .group-bar > div { display: block; }
-  .group-bar #group-status { display: block; margin-top: 4px; }
-  .mobile-filter-button { display: inline-flex; align-items: center; gap: 7px; border-radius: var(--radius); }
-  .mobile-filter-button span { min-width: 18px; height: 18px; display: grid; place-items: center; border-radius: 9px; color: white; background: var(--blue); font-size: 10px; }
+  /* The bar wraps to two rows here, so --nav-h has to grow with it. */
+  :root { --nav-h: 112px; }
+  .navbar { flex-wrap: wrap; align-content: center; gap: 12px; padding: 0 16px; }
+  .brand { flex: 1; }
+  .nav-search { order: 1; flex-basis: 100%; }
+  .nav-search .search-input-wrap { max-width: none; }
+  .filter-button span:not(.filter-badge) { display: none; }
+  .nav-actions { gap: 8px; }
+  .page-head { padding: 26px 18px 18px; }
+  .results-panel { padding: 4px 18px 60px; }
   .problem-card { grid-template-columns: minmax(0, 1fr) 38px; gap: 12px; padding: 22px 0; }
   .problem-card > div:first-child { grid-column: 1; }
   .ps-category { display: inline; margin: 0 0 0 8px; }
@@ -367,19 +368,16 @@ details[open] > summary .collapse-hint::after { transform: rotate(0deg); }
   .card-facts { grid-column: 1 / -1; grid-row: 3; }
   .problem-card > .icon-button { grid-column: 2; grid-row: 1; margin-top: -7px; }
   .detail-grid { grid-template-columns: 1fr; gap: 36px; }
-  .detail-bar { top: 64px; padding: 14px 18px; }
+  .detail-bar { padding: 14px 18px; }
   .detail-body { padding: 28px 18px 0; }
   .detail-view { padding-bottom: 64px; }
-  .group-bar-actions { gap: 12px; }
   dialog { width: 100vw; max-width: none; max-height: 95dvh; margin: auto 0 0; border-radius: 10px 10px 0 0; }
   .group-form.compare-form { width: 100vw; }
   .compare-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 430px) {
-  .dataset-summary { gap: 16px; }
-  .dataset-summary strong { font-size: 22px; }
-  .dataset-summary span { font-size: 9px; }
+  .nav-account { max-width: 12ch; }
   .results-toolbar { align-items: flex-start; gap: 12px; }
   .toolbar-actions { gap: 6px; }
   .card-facts { grid-template-columns: 1fr 1fr; }
@@ -391,11 +389,10 @@ details[open] > summary .collapse-hint::after { transform: rotate(0deg); }
 }
 
 /* Dark theme odds and ends the variables cannot reach. */
-html.dark .intro::after { -webkit-text-stroke-color: #25303e; }
 html.dark .empty-state span { color: #25303e; }
 html.dark .icon-button svg { stroke: currentColor; }
 
-/* Theme toggle in the masthead. */
+/* Theme toggle in the navbar. */
 .theme-toggle svg { width: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; }
 .theme-toggle .moon { display: none; }
 html.dark .theme-toggle .moon { display: block; }

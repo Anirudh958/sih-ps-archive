@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "node --env-file=.env scripts/dev.js",
     "start": "node --env-file=.env scripts/dev.js",
-    "import:data": "node --env-file=.env scripts/import-data.js",
-    "check": "node scripts/test-team.js && node scripts/checks/guards.mjs",
+    "check": "node scripts/test-statements.js && node scripts/test-team.js && node scripts/checks/guards.mjs",
     "check:e2e": "node --env-file=.env scripts/checks/e2e-flow.mjs"
   },
   "dependencies": {

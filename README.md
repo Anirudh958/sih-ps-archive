@@ -359,8 +359,9 @@ and organisations that published it, and Smart India Hackathon / AICTE. No autho
 or ownership of that text is claimed here, and no logos, images or branding are
 included.
 
-There is **no `LICENSE` file** in this repository, and that is deliberate: the archive
-cannot license text it does not own. What it can do is document provenance precisely.
+The [`LICENSE`](LICENSE) file covers the **software** in this repository — the browser app
+and its scripts — and nothing else. The archive cannot license text it does not own. What
+it can do is document provenance precisely.
 **Read [ATTRIBUTION.md](ATTRIBUTION.md) before reusing this data** — it names every
 source, notes that the 2026 data derives from
 [vedantchalke36/sih-2026-problem-statements](https://github.com/vedantchalke36/sih-2026-problem-statements)
@@ -379,7 +380,7 @@ Corrections to the provenance record are as welcome as corrections to the data.
 
 <div align="center">
 
-**607 problem statements. 82 organisations. 3 editions. 0 dependencies.**
+**607 problem statements. 82 organisations. 3 editions. 0 build steps.**
 
 <sub>Not affiliated with Smart India Hackathon, AICTE, or the Government of India.<br>
 An independent archive of publicly published material.</sub>

@@ -66,6 +66,15 @@
       ]
     },
     {
+      "source": "/api/problems",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {
@@ -104,7 +113,13 @@
   ],
   "functions": {
     "api/statement.js": {
-      "includeFiles": "index.html"
+      "includeFiles": "{index.html,2026/**}"
+    },
+    "api/problems/index.js": {
+      "includeFiles": "2026/**"
+    },
+    "api/sitemap.js": {
+      "includeFiles": "2026/**"
     }
   }
 }

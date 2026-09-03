@@ -1,24 +1,25 @@
 <div align="center">
---
+
 # SIH Selection Desk
 
-### Private, team-oriented browser for Smart India Hackathon 2026 problem statements
+### Team-oriented browser for the Smart India Hackathon 2026 problem statements
 
-A Vercel-hosted problem-statement desk with Supabase email/password Auth, rotating
-refresh tokens, server-side filtering, pagination, Supabase Postgres storage,
-six-member teams, and private per-team comments.
+The 226 statements are read straight from the Markdown in [`2026/`](../2026) — no
+database, no build step, nothing to import. Supabase backs only what genuinely needs an
+account: email/password Auth with rotating refresh tokens, six-member teams, private
+reviews, team votes and per-team comments.
 
-[![License](https://img.shields.io/github/license/Vigneshrdy/sih-ps?style=flat-square)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/Vigneshrdy/sih-ps?style=flat-square)](https://github.com/Vigneshrdy/sih-ps/stargazers)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
+[![License](https://img.shields.io/github/license/DeadIndian/sih-ps-archive?style=flat-square)](../LICENSE)
+[![Stars](https://img.shields.io/github/stars/DeadIndian/sih-ps-archive?style=flat-square)](https://github.com/DeadIndian/sih-ps-archive/stargazers)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](../CONTRIBUTING.md)
 ![Made with Node.js](https://img.shields.io/badge/made%20with-Node.js-blue?style=flat-square)
 
 [Getting Started](#-installation) ·
-[Architecture](docs/ARCHITECTURE.md) ·
-[Report Bug](https://github.com/Vigneshrdy/sih-ps/issues) ·
-[Request Feature](https://github.com/Vigneshrdy/sih-ps/issues)
+[Architecture](ARCHITECTURE.md) ·
+[Report Bug](https://github.com/DeadIndian/sih-ps-archive/issues) ·
+[Request Feature](https://github.com/DeadIndian/sih-ps-archive/issues)
 
-<img src="assets/screenshots/hero.png" alt="SIH Selection Desk screenshot" width="80%" />
+<img src="../assets/screenshots/hero.png" alt="SIH Selection Desk screenshot" width="80%" />
 
 </div>
 
@@ -40,9 +41,11 @@ six-member teams, and private per-team comments.
 
 ## ✨ Features
 
-- **Problem statement browser** — paginated server-side list (12 per page) with full-text search accepting both `SIH26011` and `26011` forms
-- **Filters** — theme, organization, category, dataset availability, starred items, hidden rejected items, serial-number range, quick picks
-- **Full statement view** — summary, background, verbatim official description, expected-solution bullets, pain points, competitive landscape, 36-hour build plan, evaluator questions, scorecard, SWOT, dataset link
+- **Problem statement browser** — the whole list arrives in one public request and is searched, filtered and sorted in the browser; search accepts both `SIH26011` and `26011`
+- **Filters** — theme, organization, category, dataset availability, starred items, hidden rejected items, PS-number range, quick picks
+- **Full statement view** — official description, expected solution, organization, department, category, theme, dataset link
+- **Server-rendered statement pages** — `/problem-statements/SIH26011` returns real HTML with its own title, description and JSON-LD, so crawlers and link previews work without JavaScript
+- **Reads without an account** — statements are public; signing in adds the private and team features
 - **Six-member teams** — create or join with name + password, seat 1 is the lead, automatic lead succession, one team per user
 - **Reviews** — private per-problem reading state (`to read` / `read`), decision (`keep` / `accept` / `reject`), private note (4000 chars), team votes (`yes` / `maybe` / `no`) with live totals
 - **Review board** — status-grouped board, card badges, summary bar, compare up to 4 statements, markdown export
@@ -53,40 +56,32 @@ six-member teams, and private per-team comments.
 
 | Statement list | Full statement view |
 | :---: | :---: |
-| <img src="assets/screenshots/list.png" width="100%" /> | <img src="assets/screenshots/detail.png" width="100%" /> |
+| <img src="../assets/screenshots/list.png" width="100%" /> | <img src="../assets/screenshots/detail.png" width="100%" /> |
 
 | Team dialog | Review board |
 | :---: | :---: |
-| <img src="assets/screenshots/team.png" width="100%" /> | <img src="assets/screenshots/board.png" width="100%" /> |
+| <img src="../assets/screenshots/team.png" width="100%" /> | <img src="../assets/screenshots/board.png" width="100%" /> |
 
 | Dark theme |
 | :---: |
-| <img src="assets/screenshots/dark.png" width="100%" /> |
+| <img src="../assets/screenshots/dark.png" width="100%" /> |
 
 ## 🚀 Installation
 
-> Prerequisites: Node.js ≥ 20, a Supabase project, and the `ps.json` problem
-> statement data file (kept out of git — obtain it from a teammate).
+> Prerequisites: Node.js ≥ 20. A Supabase project is needed only for accounts, teams,
+> reviews and comments — the statements work without one.
 
 ```bash
-git clone https://github.com/Vigneshrdy/sih-ps.git
-cd sih-ps
+git clone https://github.com/DeadIndian/sih-ps-archive.git
+cd sih-ps-archive
 npm install
 ```
 
-### Import the data
+### Set up Supabase
 
-1. Open your Supabase project and run [`supabase/schema.sql`](supabase/schema.sql) in **SQL Editor**.
+1. Open your Supabase project and run [`supabase/schema.sql`](../supabase/schema.sql) in **SQL Editor**. It holds accounts, sessions, teams, reviews, votes and comments — not the statements.
 2. In **Project Settings → Database**, copy the **Transaction pooler** connection string (port `6543`).
-3. Create a local `.env` from [`.env.example`](.env.example) and set `DATABASE_URL`.
-4. Place `ps.json` in the repo root — it is already excluded by `.gitignore`.
-5. Run:
-
-```bash
-npm run import:data
-```
-
-The import applies the schema and uploads all records as private Postgres rows. After a successful import, `ps.json` is never needed by Vercel.
+3. Create a local `.env` from [`.env.example`](../.env.example) and set `DATABASE_URL`.
 
 ### Configure Supabase Auth
 
@@ -110,7 +105,7 @@ Alias: `npm start` does the same. PORT is honored (`PORT=4000 npm run dev`).
 Run the checks:
 
 ```bash
-npm run check     # offline checks (team rules + guards)
+npm run check     # offline: statement parser + team rules + guards
 npm run check:e2e # full end-to-end flow (needs dev server + .env)
 ```
 
@@ -118,10 +113,13 @@ npm run check:e2e # full end-to-end flow (needs dev server + .env)
 
 | Path | View |
 | --- | --- |
-| `/` | Login gate when signed out, statement list when signed in |
-| `/problem-statements/SIH26011` | The complete problem statement |
+| `/` | The statement list, for everyone |
+| `/problem-statements` | The same list, server-rendered for crawlers |
+| `/problem-statements/SIH26011` | One complete problem statement, server-rendered |
+| `/api/problems` | All 226 statements as JSON, public, CDN-cached for an hour |
+| `/sitemap.xml` | Every statement URL |
 
-`vercel.json` rewrites `/problem-statements/*` to the app shell. A signed-out visitor opening a statement URL directly sees the login screen; after signing in, that statement opens rather than the bare list.
+`vercel.json` rewrites the `/problem-statements` paths to [`api/statement.js`](../api/statement.js), which injects that statement's metadata and body into `index.html` before sending it. The client-side app then takes over.
 
 ## ⚙️ Configuration
 
@@ -138,11 +136,28 @@ Production refuses to connect to Postgres without a verified CA. Keep any `servi
 
 ## 🌐 Deployment
 
-1. Push the project without `.env` and `ps.json` (`git ls-files ps.json` must print nothing).
+1. Push the project without `.env` (`git ls-files ps.json` must also print nothing).
 2. Import the repository into Vercel.
 3. Add all environment variables to Production and Preview environments.
 4. Deploy and connect the custom domain.
 5. Set `APP_ORIGIN` to the final domain, then redeploy.
+
+`vercel.json` carries the one non-obvious deployment requirement: `functions[].includeFiles` is what physically puts `2026/**` (and `index.html`) inside the deployed function bundles. The functions import the Markdown at runtime rather than statically, so without those entries the build succeeds and every statement page 404s in production only. [`scripts/checks/guards.mjs`](../scripts/checks/guards.mjs) asserts they are present.
+
+### Migrating an existing deployment
+
+A deployment that previously served statements from Postgres has two now-unused tables. The app ignores them, so this is optional cleanup — run it only after the new deployment is live and verified.
+
+```sql
+-- Destructive and irreversible. The statements live in 2026/*.md now; this drops the
+-- copies in Postgres. Reviews, votes and comments keep their ps_number values, which are
+-- plain TEXT with no foreign key, so nothing here touches user data.
+ALTER TABLE group_comments       DROP CONSTRAINT IF EXISTS group_comments_ps_number_fkey;
+ALTER TABLE user_problem_reviews DROP CONSTRAINT IF EXISTS user_problem_reviews_ps_number_fkey;
+ALTER TABLE team_problem_votes   DROP CONSTRAINT IF EXISTS team_problem_votes_ps_number_fkey;
+DROP TABLE IF EXISTS statement_accesses;
+DROP TABLE IF EXISTS problem_statements;
+```
 
 ### Put Cloudflare in front
 
@@ -152,37 +167,42 @@ Proxy the domain through Cloudflare with SSL/TLS mode **Full (strict)**. Minimum
 | --- | ---: | --- |
 | `POST /api/auth` | 10 requests/IP/10 minutes | Managed Challenge |
 | `POST /api/team` | 5 requests/IP/15 minutes | Block for 1 hour |
-| `GET /api/problems/*` | 60 requests/IP/minute | Managed Challenge |
 | `POST /api/comments*` | 10 requests/IP/minute | Block for 10 minutes |
 
-Also enable Bot Fight Mode. Every route additionally rate-limits per account in Postgres, so changing IP alone does not bypass the limits.
+Also enable Bot Fight Mode. The account-backed routes additionally rate-limit per account in Postgres, so changing IP alone does not bypass those limits. `GET /api/problems` needs no rule: it is one public response, identical for everyone, served from the CDN.
 
 ## 🔒 Security Model
 
-`ps.json` must never be deployed or committed. Browsers can only request:
+The problem statements are public. They are published by SIH, they are committed to this
+repository in Markdown, and every one of them is server-rendered for crawlers — so there
+is nothing for an access gate to protect, and the previous one is gone.
 
-- 12 summary records per list request
-- One complete statement per detail request
-- At most 60 distinct complete statements per seven-day account
-- Comments belonging to the joined team
+What stays closed is everything tied to an account:
 
-Every API route requires a verified Supabase access token; a logged-out caller gets `401` and no data. This slows and detects bulk collection but cannot make publicly displayed information impossible to copy — Cloudflare rate limits and bot management are still required in front of Vercel. Details on where enforcement lives, and why RLS is not the control here, are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security-model).
+| Route | Caller |
+| --- | --- |
+| `GET /api/problems`, `/problem-statements/*`, `/sitemap.xml` | Anyone |
+| `/api/reviews`, `/api/team`, `/api/comments` | Verified Supabase access token, else `401` |
+
+Private notes, decisions, votes and comments are scoped to the account or the joined team in SQL on every read and write. Direct client access to Postgres is off: RLS is enabled and `anon` and `authenticated` have `REVOKE ALL` on every table, so the API functions are the only way in. Team size is capped by the database itself — `CHECK (seat BETWEEN 1 AND 6)` plus `UNIQUE (team_id, seat)` make a seventh row impossible to insert. Where enforcement lives, and why RLS is not the primary control, is in [ARCHITECTURE.md](ARCHITECTURE.md#security-model).
 
 ## 🤝 Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before opening a PR.
+Contributions are welcome. Please read [CONTRIBUTING.md](../CONTRIBUTING.md) and the [Code of Conduct](../CODE_OF_CONDUCT.md) before opening a PR.
 
 ## 👥 Contributors
 
-- **[Vignesh Reddy](https://github.com/Vigneshrdy)** — original author, upstream maintainer
-- **[DeadIndian](https://github.com/DeadIndian)** — contributor (fork: [DeadIndian/sih-ps](https://github.com/DeadIndian/sih-ps))
+- **[Vignesh Reddy](https://github.com/Vigneshrdy)** — original author of the app
+- **[DeadIndian](https://github.com/DeadIndian)** — archive and app maintainer
 
 ## 📄 License
 
-Distributed under the MIT License. See [LICENSE](LICENSE) for details.
+The app code is MIT — see [LICENSE](../LICENSE). The problem statement text in `2024/`,
+`2025/` and `2026/` is not the app's to license; see [ATTRIBUTION.md](../ATTRIBUTION.md).
 
 ---
 
 <div align="center">
-<sub>Architecture notes in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)</sub>
+<sub>Architecture notes in <a href="ARCHITECTURE.md">ARCHITECTURE.md</a></sub>
 </div>
+

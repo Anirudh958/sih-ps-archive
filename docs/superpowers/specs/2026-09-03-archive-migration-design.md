@@ -65,13 +65,16 @@ Supabase keeps `auth.users`, `browse_sessions`, `teams`, `team_members`,
 
 ## lib/statements.js
 
-Three exports, one module-scope cache, parsed once per function instance.
+Two exports, one module-scope cache, parsed once per function instance.
 
 ```
 all()    → [problem], sorted by ps_number, sno = index + 1
 byId(id) → problem | undefined
-meta()   → { themes[], orgs[], total }
 ```
+
+There is no `meta()`. Themes, organisations and totals are derived in the browser by
+`loadMetadata()` from the one list response, and `api/filters.js` — the only server-side
+consumer such an export would have had — is being deleted.
 
 | markdown | field |
 |---|---|
@@ -147,9 +150,13 @@ README, badges repointed from `Vigneshrdy/sih-ps` to `DeadIndian/sih-ps-archive`
 **Deleted** — `api/problems/[id].js` (60-cap, never called by the client);
 `api/filters.js` (never called; `loadMetadata()` derives filters in the browser);
 `scripts/import-data.js` (no `ps.json`, no table);
-`344ad1dc8fd5dedd6f29ba338fdde914.txt` (stray 33-byte file); the `ps.json` line in
-`.vercelignore`; the app's `README.md` (moved) and `CODE_OF_CONDUCT.md` (the
-archive's wins).
+`344ad1dc8fd5dedd6f29ba338fdde914.txt` (stray 33-byte file); the app's `README.md`
+(moved) and `CODE_OF_CONDUCT.md` (the archive's wins).
+
+The `ps.json` lines in `.gitignore` and `.vercelignore` stay. Vercel uploads the working
+directory rather than the git tree, so `.vercelignore` is what stops an untracked local
+`ps.json` from being deployed — it guards a real accident even though nothing generates
+that file any more.
 
 ## Postgres migration
 
@@ -194,7 +201,7 @@ row. `statement_accesses` is the only table whose data is discarded; it held
 `ps_number` unique and matching `/^SIH\d{5}$/`; `sno` contiguous 1 to 226; every
 record has a non-empty `title`, `org`, `category` and `theme`; `SIH26031` parses
 with an empty `description` and a non-empty `expected_solution`; `SIH26038` yields
-a `dataset_link`; `meta().themes` is non-empty.
+a `dataset_link`; `all()` returns the same array on the second call.
 
 `scripts/checks/guards.mjs` currently asserts five things that this change
 invalidates — `api("/api/problems?all=1")` in `app.js`, the `request.query.all`
@@ -205,17 +212,24 @@ list. Each is retargeted at the new design rather than deleted.
 
 ## Order of work
 
-1. In `sih-ps`: `lib/statements.js` and its test, rewrite the three read paths,
-   delete the dead ones, update guards. `npm run check` green.
-2. Client: anonymous browsing. `npm run check` green.
-3. Docs, `schema.sql`, `vercel.json`, `package.json`.
-4. Commit in `sih-ps`.
-5. In `sih-ps-archive`: rewrite `.gitignore`, then
-   `merge --allow-unrelated-histories`, resolving `README.md`,
+The merge comes first. `lib/statements.js` parses `2026/*.md`, and that directory only
+exists in `sih-ps-archive`, so neither the parser nor its test can run in `sih-ps`.
+
+1. In `sih-ps-archive`: rewrite `.gitignore` for a repository that holds code, then
+   `merge --allow-unrelated-histories` from the `sih-ps` remote, resolving `README.md`,
    `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` by hand; app README to `docs/APP.md`.
-6. Verify against the archive checkout: `npm run check`, then `npm run dev` and
-   load `/`, `/problem-statements`, `/problem-statements/SIH26001` and
-   `/sitemap.xml`, both anonymous and signed in.
+2. `lib/statements.js` and its test. Rewrite the three read paths, delete the dead
+   ones, update `guards.mjs`, `vercel.json`, `package.json` and `schema.sql`.
+   `npm run check` green.
+3. Client: anonymous browsing, plus `index.html` and `manifest.webmanifest`.
+   `npm run check` green.
+4. `scripts/checks/e2e-flow.mjs`: the statement assertions test routes that no longer
+   exist. Retarget them at the public list.
+5. Docs: `docs/APP.md`, `docs/ARCHITECTURE.md`, `LICENSE`, this spec.
+6. Verify: `npm run check`, then `npm run dev` and load `/`, `/problem-statements`,
+   `/problem-statements/SIH26001` and `/sitemap.xml`, both anonymous and signed in.
+   The archive checkout needs its own `.env` and `npm install` — neither travels with a
+   git merge.
 7. Stop. Pushing, repointing Vercel and the Postgres migration each need their
    own go-ahead.
 

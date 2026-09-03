@@ -4,14 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SIH 2026 Problem Statements — Search, Filter &amp; Shortlist</title>
-    <meta name="description" content="Browse all 229 official Smart India Hackathon 2026 problem statements. Search by PS number, theme, ministry or organisation, then shortlist with your team." />
+    <meta name="description" content="Browse all 226 official Smart India Hackathon 2026 problem statements. Search by PS number, theme, ministry or organisation, then shortlist with your team." />
     <link rel="canonical" href="https://sih.saireddy.dev/" />
     <meta name="theme-color" content="#194fd1" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="SIH 2026 Selection Desk" />
     <meta property="og:locale" content="en_IN" />
     <meta property="og:title" content="SIH 2026 Problem Statements — Search, Filter &amp; Shortlist" />
-    <meta property="og:description" content="All 229 official Smart India Hackathon 2026 problem statements in one place. Search by PS number, theme, ministry or organisation, then shortlist with your team." />
+    <meta property="og:description" content="All 226 official Smart India Hackathon 2026 problem statements in one place. Search by PS number, theme, ministry or organisation, then shortlist with your team." />
     <!-- Social crawlers (X, Facebook, LinkedIn, WhatsApp) do not render SVG previews,
          so the card points at a real raster screenshot. -->
     <meta property="og:image" content="https://sih.saireddy.dev/assets/screenshots/hero.png" />
@@ -21,7 +21,7 @@
     <meta property="og:url" content="https://sih.saireddy.dev/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="SIH 2026 Problem Statements — Search, Filter &amp; Shortlist" />
-    <meta name="twitter:description" content="All 229 official Smart India Hackathon 2026 problem statements in one place. Search, filter by theme or ministry, and shortlist with your team." />
+    <meta name="twitter:description" content="All 226 official Smart India Hackathon 2026 problem statements in one place. Search, filter by theme or ministry, and shortlist with your team." />
     <meta name="twitter:image" content="https://sih.saireddy.dev/assets/screenshots/hero.png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/assets/logo.jpg" type="image/jpeg" sizes="180x180" />
@@ -40,7 +40,7 @@
         "inLanguage": "en-IN",
         "isAccessibleForFree": true,
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
-        "description": "Search, filter, compare and shortlist all 229 official Smart India Hackathon 2026 problem statements with your team.",
+        "description": "Search, filter, compare and shortlist all 226 official Smart India Hackathon 2026 problem statements with your team.",
         "about": { "@type": "Event", "name": "Smart India Hackathon 2026", "url": "https://sih.gov.in/" }
       }
     </script>
@@ -52,7 +52,7 @@
       <div class="gate-panel">
         <img class="brand-mark" src="/assets/logo.jpg" alt="SIH Selection Desk logo" />
         <p class="eyebrow">SIH 2026 Selection Desk</p>
-        <h2 id="boot-title">SIH 2026 problem<br />statements, all 229.</h2>
+        <h2 id="boot-title">SIH 2026 problem<br />statements, all 226.</h2>
         <p>Loading the official Smart India Hackathon 2026 problem statement list — search by PS number, theme, ministry or organisation, then shortlist with your team.</p>
       </div>
     </section>
@@ -61,8 +61,8 @@
       <div class="gate-panel">
         <img class="brand-mark" src="/assets/logo.jpg" alt="SIH Selection Desk logo" />
         <p class="eyebrow">SIH 2026 Selection Desk</p>
-        <h2 id="access-title">Sign in to open<br />the selection desk.</h2>
-        <p>Create an account or sign in to browse all 229 official Smart India Hackathon 2026 problem statements, filter by theme, category and organisation, and shortlist with your team.</p>
+        <h2 id="access-title">Sign in to shortlist<br />with your team.</h2>
+        <p>The 226 official Smart India Hackathon 2026 problem statements are free to read without an account. Sign in to keep private notes, mark statements read or decided, form a six-member team and vote together.</p>
 
         <div class="segmented team-switch" id="auth-mode" role="group" aria-label="Authentication mode">
           <button class="active" type="button" data-mode="login">Log in</button>
@@ -73,25 +73,32 @@
           <label><span>Password</span><input id="auth-password" type="password" required minlength="8" maxlength="72" autocomplete="current-password" /></label>
           <p class="gate-status" id="gate-status" role="status">Checking your session…</p>
           <button class="primary-button" id="auth-submit" type="submit">Log in</button>
+          <button class="text-button" id="gate-dismiss" type="button">Keep browsing without an account</button>
         </form>
       </div>
     </section>
 
-    <section class="group-bar" id="group-bar" hidden aria-label="Team collaboration">
-      <div><span class="section-index">TEAM</span><strong id="group-name">No team yet</strong><span id="group-status">Create or join a team to comment together.</span></div>
-      <div class="group-bar-actions">
-        <button class="text-button" id="join-group-button" type="button">Create or join team</button>
-        <button class="text-button" id="logout-button" type="button">Log out</button>
-      </div>
-    </section>
-
-    <header class="masthead">
+    <header class="navbar" id="navbar">
       <a class="brand" href="/" aria-label="SIH Selection Desk home">
         <img class="brand-mark" src="/assets/logo.jpg" alt="SIH Selection Desk logo" />
         <span><strong>SIH</strong><small>Selection Desk</small></span>
       </a>
-      <div class="masthead-actions">
-        <div class="deadline"><span>Submission deadline</span><strong>20 Sep 2026</strong></div>
+
+      <div class="nav-search" role="search">
+        <label class="search-input-wrap">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+          <input id="search" type="search" aria-label="Search problem statements" placeholder="Search themes, ministries, keywords, SIH26011…" autocomplete="off" />
+          <kbd>/</kbd>
+        </label>
+        <button class="filter-button" id="filter-button" type="button" aria-controls="filters" aria-expanded="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path><circle cx="15" cy="7" r="2"></circle><circle cx="9" cy="17" r="2"></circle></svg>
+          <span>Filters</span><span class="filter-badge" id="filter-badge" hidden>0</span>
+        </button>
+      </div>
+
+      <div class="nav-actions">
+        <button class="nav-account" id="join-group-button" type="button">Sign in</button>
+        <button class="text-button" id="logout-button" type="button" hidden>Log out</button>
         <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme" title="Toggle dark theme">
           <svg class="sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"></path></svg>
           <svg class="moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z"></path></svg>
@@ -102,25 +109,15 @@
 
     <main>
       <div id="list-view" hidden>
-      <section class="intro" aria-labelledby="page-title">
-        <div>
-          <p class="eyebrow">Smart India Hackathon / 2026</p>
-          <h1 id="page-title">Find the problem<br />worth <em>36 hours.</em></h1>
-        </div>
-        <div class="intro-note">
-          <p>Search the official problem statements, narrow by practical constraints, and star the ones your team should discuss.</p>
-          <div class="dataset-summary" aria-label="Dataset summary">
-            <span><strong id="total-count">—</strong> statements</span>
-            <span><strong id="theme-count">—</strong> themes</span>
-            <span><strong id="org-count">—</strong> organizations</span>
-          </div>
-        </div>
+      <section class="page-head" aria-labelledby="page-title">
+        <h1 id="page-title">Smart India Hackathon 2026 problem statements</h1>
+        <p><strong id="total-count">—</strong> statements from <strong id="org-count">—</strong> organizations across <strong id="theme-count">—</strong> themes. Read the official text, star what fits, decide as a team.</p>
       </section>
 
       <section class="workspace" aria-label="Problem statement explorer">
         <aside class="filters" id="filters">
           <div class="filter-heading">
-            <div><span class="section-index">01</span><h2>Refine</h2></div>
+            <h2>Filters</h2>
             <div class="filter-heading-actions">
               <button class="text-button" id="clear-filters" type="button">Clear all</button>
               <button class="icon-button filter-close" id="filter-close" type="button" aria-label="Close filters" title="Close filters">
@@ -128,15 +125,6 @@
               </button>
             </div>
           </div>
-
-          <label class="search-field">
-            <span>Search everything</span>
-            <span class="search-input-wrap">
-              <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
-              <input id="search" type="search" aria-label="Search problem statements" placeholder="AI, agriculture, ISRO, SIH26011…" autocomplete="off" />
-              <kbd>/</kbd>
-            </span>
-          </label>
 
           <div class="filter-block">
             <span class="filter-label">Quick picks</span>
@@ -197,14 +185,10 @@
 
         <div class="results-panel">
           <div class="results-toolbar">
-            <div>
-              <span class="section-index">02</span>
-              <p><strong id="result-count">—</strong> matches <span id="active-summary"></span></p>
-            </div>
+            <p><strong id="result-count">—</strong> matches <span id="active-summary"></span></p>
             <div class="toolbar-actions">
               <button class="text-button" id="open-compare" type="button" title="Compare the statements you ticked, side by side" hidden>Compare selected (<span id="compare-count">0</span>)</button>
               <button class="text-button" id="export-board" type="button" title="Download your review board as markdown">Export board</button>
-              <button class="mobile-filter-button" id="mobile-filter-button" type="button">Filters <span id="filter-badge">0</span></button>
             </div>
           </div>
 

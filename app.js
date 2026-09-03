@@ -128,6 +128,9 @@ async function saveReview(id, payload) {
 }
 
 async function loadReviewsForProblems(ids) {
+  // Reviews are per-account. An anonymous visitor has none, and asking for them would
+  // turn a free browse into a 401 and a pointless refresh attempt.
+  if (!state.accessToken) return;
   const missing = ids.filter((id) => !(id in state.reviewCache));
   if (!missing.length) return;
   const result = await api(`/api/reviews?ids=${missing.map(encodeURIComponent).join(",")}`);
@@ -145,8 +148,8 @@ function applyMetadata(metadata) {
   $("#total-count").textContent = metadata.stats.total;
   $("#theme-count").textContent = metadata.stats.themes;
   $("#org-count").textContent = metadata.stats.orgs;
-  // The PS-range inputs were hardcoded to 226 and silently refused the last three
-  // statements, so take the ceiling from the dataset itself.
+  // The PS-range inputs used to carry a hardcoded ceiling that drifted out of step with
+  // the data, so take it from the dataset itself.
   for (const input of [$("#ps-from"), $("#ps-to")]) input.max = metadata.stats.total;
   $("#ps-to").placeholder = metadata.stats.total;
   state.filtersLoaded = true;
@@ -276,9 +279,19 @@ async function refreshAccessToken() {
   return refreshRequest;
 }
 
+const SIGN_IN_REQUIRED = "Sign in to use private notes, teams and votes.";
+
 async function api(path, options = {}, retry = true) {
+  // Everything still behind api() is per-account: reviews, teams, comments. The
+  // statements themselves are public and fetched without a token, so reaching here
+  // with no session means an anonymous visitor pressed an account action -- offer the
+  // account instead of spending a 401 and a refresh attempt to find that out.
+  if (!state.accessToken) {
+    showGate(SIGN_IN_REQUIRED);
+    throw new Error(SIGN_IN_REQUIRED);
+  }
   const headers = new Headers(options.headers);
-  if (state.accessToken) headers.set("Authorization", `Bearer ${state.accessToken}`);
+  headers.set("Authorization", `Bearer ${state.accessToken}`);
   const response = await fetch(path, { ...options, headers, credentials: "same-origin" });
   if (response.status === 401 && retry) {
     try {
@@ -297,20 +310,24 @@ async function api(path, options = {}, retry = true) {
   return response.json();
 }
 
-// The 229 official statements come from Supabase in one request and are then filtered,
+// The 226 official statements come from one public request and are then filtered,
 // paginated and opened entirely in the browser, so browsing costs no further round
-// trips. The endpoint keeps them in memory, so a warm function never touches the DB.
+// trips. Plain fetch, not api(): the endpoint takes no token, and going through api()
+// would send an anonymous visitor down the token-refresh path on a cold load.
 const dataset = { rows: [], byId: new Map() };
 let datasetRequest;
 
 async function loadDataset() {
   if (dataset.rows.length) return dataset.rows;
-  datasetRequest ||= api("/api/problems?all=1")
+  datasetRequest ||= fetch("/api/problems")
+    .then((response) => {
+      if (!response.ok) throw new Error(`Could not load the problem statements (${response.status})`);
+      return response.json();
+    })
     .then((result) => {
       const rows = result.items || [];
       for (const row of rows) {
-        row.summary = (row.description || "").slice(0, 400);
-        row.blob = [row.ps_number, row.title, row.org, row.department, row.category, row.theme, row.description].join(" ").toLowerCase();
+        row.blob = [row.ps_number, row.title, row.org, row.department, row.category, row.theme, row.description, row.expected_solution].join(" ").toLowerCase();
         dataset.byId.set(row.ps_number, row);
       }
       dataset.rows = rows;
@@ -499,21 +516,18 @@ function render() {
   $("#result-count").textContent = state.total;
   $("#active-summary").textContent = `· showing ${state.problems.length}`;
   $("#load-more").hidden = !state.hasMore;
-  const entries = activeFilterEntries();
-  $("#active-filters").innerHTML = entries.map(([key, label]) => `<button class="active-filter" type="button" data-remove-filter="${key}" title="Remove ${filterNames[key]}">${escapeHtml(label)}</button>`).join("");
-  $("#filter-badge").textContent = entries.length;
-  $("#compare-count").textContent = state.compare.size;
-  $("#open-compare").hidden = state.compare.size === 0;
-  renderReviewSummary();
-  renderReviewBoard();
-  syncControls();
-  syncUrl();
+  renderFilterState();
 }
 
+// Everything that reflects the filters rather than the result rows. Called on its own
+// while the list is still loading, so it cannot touch the cards.
 function renderFilterState() {
   const entries = activeFilterEntries();
   $("#active-filters").innerHTML = entries.map(([key, label]) => `<button class="active-filter" type="button" data-remove-filter="${key}" title="Remove ${filterNames[key]}">${escapeHtml(label)}</button>`).join("");
-  $("#filter-badge").textContent = entries.length;
+  const badge = $("#filter-badge");
+  badge.textContent = entries.length;
+  // The count is only worth pixels in the navbar when it is not zero.
+  badge.hidden = entries.length === 0;
   $("#compare-count").textContent = state.compare.size;
   $("#open-compare").hidden = state.compare.size === 0;
   renderReviewSummary();
@@ -557,12 +571,10 @@ function problemToMarkdown(problem) {
     `# ${problem.ps_number} — ${problem.title}`, "",
     `**Organization:** ${problem.org}  `,
     `**Department:** ${problem.department || "N/A"}  `,
-    `**Category:** ${problem.category} · **Theme:** ${problem.theme}  `,
-    `**Deadline:** ${problem.deadline || "N/A"} · **Submitted ideas:** ${problem.ideas || "N/A"}`, "",
-    problem.description ? `## Description\n\n${problem.description}` : "",
-    problem.dataset_link ? `## Dataset\n\n${problem.dataset_link}` : "",
-    problem.youtube ? `## Youtube\n\n${problem.youtube}` : "",
-    problem.contact ? `## Contact\n\n${problem.contact}` : "",
+    `**Category:** ${problem.category} · **Theme:** ${problem.theme}`, "",
+    problem.description ? `## Problem Statement\n\n${problem.description}` : "",
+    problem.expected_solution ? `## Expected Solution\n\n${problem.expected_solution}` : "",
+    problem.dataset ? `## Dataset\n\n${problem.dataset}` : "",
   ];
   return parts.filter(Boolean).join("\n\n").replace(/\n{3,}/g, "\n\n");
 }
@@ -588,6 +600,8 @@ function detailTemplate(problem) {
     <div class="detail-tags"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span></div>
     <div class="detail-grid"><div>
       ${proseSection("Official description", problem.description, true)}
+      ${proseSection("Expected solution", problem.expected_solution, !problem.description)}
+      ${proseSection("Dataset", problem.dataset)}
     </div><aside>
       <section class="detail-section review-panel"><h3>Your review</h3>
         <div class="review-group"><span>Reading</span><div class="review-actions">${Object.entries(READING_STATES).map(([value, label]) => `<button class="review-button ${review.reading === value ? "active" : ""}" type="button" data-set-reading="${value}">${label}</button>`).join("")}<button class="review-button clear" type="button" data-clear-reading>Clear</button></div></div>
@@ -600,8 +614,7 @@ function detailTemplate(problem) {
       <div class="mini-stat"><span>Department</span><strong>${escapeHtml(problem.department || "—")}</strong></div>
       <div class="mini-stat"><span>Category</span><strong>${escapeHtml(problem.category || "—")}</strong></div>
       <div class="mini-stat"><span>Theme</span><strong>${escapeHtml(problem.theme || "—")}</strong></div>
-      <div class="mini-stat"><span>Deadline for idea submission</span><strong>${escapeHtml(problem.deadline || "—")}</strong></div>
-      ${problem.contact ? `<div class="mini-stat"><span>Contact info</span><strong>${escapeHtml(problem.contact)}</strong></div>` : ""}
+      ${problem.dataset_link ? `<div class="mini-stat"><span>Dataset</span><strong><a href="${escapeHtml(problem.dataset_link)}" rel="noreferrer noopener">Open dataset ↗</a></strong></div>` : ""}
 
       <section class="detail-section" id="comments-section"><h3>Team notes</h3>${state.team ? '<div id="comment-list"><p>Loading team notes…</p></div><form class="comment-form" id="comment-form"><textarea id="comment-body" maxlength="2000" required placeholder="Add a team note…"></textarea><div class="comment-row"><span class="gate-status" id="comment-status"></span><button class="primary-button" type="submit">Add team note</button></div></form>' : '<p>Create or join a team to read and leave team notes.</p>'}</section>
     </aside></div>`;
@@ -798,7 +811,16 @@ function bindEvents() {
     if (event.key === "ArrowLeft") stepStatement(-1);
     if (event.key === "ArrowRight") stepStatement(1);
   });
-  $("#search").addEventListener("input", (event) => { state.search = event.target.value; clearTimeout(searchTimer); searchTimer = setTimeout(filterChanged, 300); });
+  $("#search").addEventListener("input", (event) => {
+    state.search = event.target.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      // Search lives in the navbar, so it is reachable from a statement page too.
+      // Typing there means "take me back to the results".
+      if (state.view !== "list") navigate("/");
+      filterChanged();
+    }, 300);
+  });
   ["theme", "org"].forEach((key) => $(`#${key}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
   [["individual-review", "individualReview"], ["team-vote", "teamVote"]].forEach(([id, key]) => $(`#${id}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
   [["ps-from", "from"], ["ps-to", "to"]].forEach(([id, key]) => $(`#${id}`).addEventListener("change", (event) => { state[key] = event.target.value; filterChanged(); }));
@@ -885,7 +907,12 @@ function bindEvents() {
       toast(error.message, "error");
     }
   });
-  $("#mobile-filter-button").addEventListener("click", () => { filters.classList.add("open"); $("#filter-backdrop").hidden = false; });
+  $("#filter-button").addEventListener("click", () => {
+    if (filters.classList.contains("open")) return closeMobileFilters();
+    filters.classList.add("open");
+    $("#filter-backdrop").hidden = false;
+    $("#filter-button").setAttribute("aria-expanded", "true");
+  });
   $("#open-compare").addEventListener("click", openCompareDialog);
   $("#export-board").addEventListener("click", exportBoard);
   $("#compare-dialog-close").addEventListener("click", () => $("#compare-dialog").close());
@@ -903,7 +930,10 @@ function bindEvents() {
   });
   $("#filter-close").addEventListener("click", closeMobileFilters);
   $("#filter-backdrop").addEventListener("click", closeMobileFilters);
-  $("#join-group-button").addEventListener("click", () => openTeamDialog(state.team ? "join" : "create"));
+  $("#join-group-button").addEventListener("click", () => {
+    if (!state.accessToken) return showGate();
+    openTeamDialog(state.team ? "join" : "create");
+  });
   $("#group-dialog-close").addEventListener("click", () => $("#group-dialog").close());
   $("#team-mode").addEventListener("click", (event) => { const button = event.target.closest("button"); if (button) setTeamMode(button.dataset.mode); });
   $("#team-create-form").addEventListener("submit", (event) => submitTeam(event, "create"));
@@ -912,10 +942,11 @@ function bindEvents() {
   $("#auth-mode").addEventListener("click", (event) => { const button = event.target.closest("button"); if (button) setAuthMode(button.dataset.mode); });
   $("#auth-form").addEventListener("submit", submitAuth);
   $("#logout-button").addEventListener("click", logout);
+  $("#gate-dismiss").addEventListener("click", dismissGate);
   window.addEventListener("popstate", route);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && filters.classList.contains("open")) closeMobileFilters();
-    if (event.key === "/" && state.view === "list" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { event.preventDefault(); $("#search").focus(); }
+    if (event.key === "/" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { event.preventDefault(); $("#search").focus(); }
   });
 }
 
@@ -927,12 +958,13 @@ function openStatement(id) {
 function closeMobileFilters() {
   filters.classList.remove("open");
   $("#filter-backdrop").hidden = true;
+  $("#filter-button").setAttribute("aria-expanded", "false");
 }
 
 async function startApp() {
   $("#boot-screen").hidden = true;
   $("#access-gate").hidden = true;
-  $("#group-bar").hidden = false;
+  $("#navbar").hidden = false;
   renderTeamBar();
   if (pendingRoute) {
     navigate(pendingRoute, { replace: true });
@@ -943,17 +975,26 @@ async function startApp() {
   }
 }
 
+// The whole team state reads off one navbar button now: what it says is what the next
+// step is. Anonymous browsing is the default, so it sells the account rather than
+// pretending the visitor has an empty team, and there is nothing to log out of.
 function renderTeamBar() {
-  const bar = $("#group-status");
-  if (!state.team) {
-    $("#group-name").textContent = "No team yet";
-    bar.textContent = "Create or join a team to comment together.";
-    $("#join-group-button").textContent = "Create or join team";
+  const button = $("#join-group-button");
+  $("#logout-button").hidden = !state.accessToken;
+  if (!state.accessToken) {
+    button.textContent = "Sign in";
+    button.title = "Sign in to shortlist with a team, take private notes and vote";
     return;
   }
-  $("#group-name").textContent = state.team.name;
-  bar.textContent = `${state.team.members} / ${state.team.maxMembers} members · Team Lead ${state.team.leaderName}`;
-  $("#join-group-button").textContent = "View team";
+  if (!state.team) {
+    button.textContent = "Create team";
+    button.title = "Create or join a team of up to 6 to vote and share notes";
+    return;
+  }
+  // A team name is unbounded user text and the button clips it, so the full value
+  // stays reachable in the tooltip.
+  button.textContent = `${state.team.name} · ${state.team.members}/${state.team.maxMembers}`;
+  button.title = `${state.team.name} — ${state.team.members} of ${state.team.maxMembers} members · Team Lead ${state.team.leaderName}`;
 }
 
 function renderTeamPanel() {
@@ -1131,10 +1172,13 @@ function setAuthMode(mode) {
 }
 
 // Spotlight tour: a cutout highlights one element at a time with a small card
-// beside it. Runs once for a new browser; the "?" button in the masthead restarts it.
+// beside it. Runs once for a new browser; the "?" button in the navbar restarts it.
+// Every selector must resolve to a *visible* element, because the spotlight is
+// positioned from a live rect -- so this points at the filter button rather than at
+// the controls inside the closed drawer.
 const TOUR_STEPS = [
   { selector: "#search", title: "Search everything", text: "Type a keyword, an organization, or a PS number like SIH26011. Press / from anywhere to jump here." },
-  { selector: ".quick-picks", title: "Quick picks", text: "One-tap filters: statements that have a dataset, ones you starred, or hide the ones you already rejected." },
+  { selector: "#filter-button", title: "Narrow it down", text: "Filters open here: theme, organization, Software or Hardware, PS number range, plus your own review status and your team's votes." },
   { selector: "#problem-list .problem-card", title: "Open a statement", text: "Click anywhere on a card to read the full problem statement. The star shortlists it; Compare queues up to 4 side by side." },
   { selector: "#export-board", title: "Your review board", text: "As you mark statements Keep / Accept / Reject, they collect on a board you can export as markdown." },
   { selector: "#join-group-button", title: "Team up", text: "Create or join a team of up to 6 to vote on statements and share team notes." },
@@ -1206,15 +1250,24 @@ function showGate(message = "") {
   state.currentProblem = null;
   state.reviewCache = {};
   $("#boot-screen").hidden = true;
-  // Hide the app shell, not just cover it: otherwise the filters and search box
-  // behind the gate stay in the tab order for a signed-out visitor.
+  // Hide the app shell, not just cover it: otherwise the search box and the filter
+  // button behind the gate stay in the tab order.
   $("#list-view").hidden = true;
   $("#detail-view").hidden = true;
   $("#access-gate").hidden = false;
-  $("#group-bar").hidden = true;
+  $("#navbar").hidden = true;
   $("#gate-status").textContent = message;
   $("#gate-status").classList.toggle("error", Boolean(message));
   $("#auth-submit").disabled = false;
+}
+
+// The gate is now an offer, not a wall: the statements are public, so dismissing it
+// has to put the visitor back where they were rather than leave a blank page.
+function dismissGate() {
+  $("#access-gate").hidden = true;
+  $("#navbar").hidden = false;
+  renderTeamBar();
+  route();
 }
 
 async function submitAuth(event) {
@@ -1266,9 +1319,17 @@ async function logout() {
   } finally {
     button.disabled = false;
     history.replaceState({}, "", "/");
+    // Logging out drops back to anonymous browsing rather than to a wall: the
+    // statements were never the thing the account protected.
+    clearSession();
+    state.accessToken = "";
+    state.team = null;
+    state.reviewCache = {};
     state.view = "list";
-    state.problems = [];
-    showGate("You are logged out.");
+    $("#access-gate").hidden = true;
+    renderTeamBar();
+    route();
+    toast("You are logged out.");
   }
 }
 
@@ -1276,18 +1337,8 @@ async function boot() {
   readUrl();
   bindEvents();
   setAuthMode("login");
-  // A protected deep link is remembered, then opened once authentication succeeds.
+  // A deep link opens once the dataset is in memory, not before.
   if (location.pathname.startsWith(DETAIL_PREFIX)) pendingRoute = location.pathname;
-
-  // On a server-rendered statement page the official text is already in the HTML.
-  // A signed-out visitor (Googlebot included) keeps reading it instead of being
-  // bounced to the login gate, which is what made every statement unindexable.
-  if (document.body.dataset.serverRendered === "statement" && !readSession()) {
-    state.view = "detail";
-    $("#boot-screen").hidden = true;
-    $("#access-gate").hidden = true;
-    return;
-  }
 
   // A stored session renders the signed-in app straight away and rotates the token in
   // the background, so a reload never flashes the boot or login screen. An expired
@@ -1302,25 +1353,26 @@ async function boot() {
     return;
   }
 
+  // No stored session: browse anonymously. The statements are public Markdown, so the
+  // list is never gated -- an anonymous cold load makes exactly one request and never
+  // waits on Supabase.
   $("#boot-screen").hidden = false;
   $("#access-gate").hidden = true;
-  // Only a 401 means "not signed in". Anything else is the server or network having
-  // a moment, so retry once rather than dropping the user back to the login screen.
-  for (const attempt of [0, 1]) {
-    try {
-      await refreshAccessToken();
-      break;
-    } catch (error) {
-      if (error.status === 401) return showGate();
-      if (attempt === 1) return showGate(error.message);
-      await new Promise((resolve) => setTimeout(resolve, 900));
-    }
-  }
   try {
     await startApp();
   } catch (error) {
     toast(error.message, "error");
     route();
+  }
+
+  // A refresh cookie can outlive localStorage, so one silent attempt runs after the
+  // list is on screen: it restores a returning visitor without a login and costs a
+  // first-time one nothing. Failing is the normal case here, so it stays quiet.
+  try {
+    await refreshAccessToken();
+    await startApp();
+  } catch {
+    // Not signed in. That is a supported way to use the site.
   }
 }
 

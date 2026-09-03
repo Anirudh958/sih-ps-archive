@@ -1,28 +1,20 @@
-// Public, crawlable statement pages. Googlebot has no session, so the SPA's
-// authenticated fetch left every statement invisible and every deep link
-// canonicalised to "/". This renders the official statement into the app shell
-// server-side with its own canonical, so each PS is an indexable page. The app
-// still hydrates on top for signed-in users.
+// Public, crawlable statement pages. A crawler runs no JavaScript, so the SPA alone
+// left every statement invisible and every deep link canonicalised to "/". This renders
+// the official statement into the app shell server-side with its own canonical, so each
+// PS is an indexable page. The app still hydrates on top.
 import fs from "node:fs";
-import { db } from "../lib/db.js";
 import { methodNotAllowed } from "../lib/http.js";
+import { all, byId } from "../lib/statements.js";
 
 const ORIGIN = (process.env.APP_ORIGIN || "").split(",")[0].trim() || "https://sih.saireddy.dev";
 const SITE = "SIH 2026 Selection Desk";
 
 // Read once per function instance: the shell never changes between requests.
 let shell;
-let statements;
 
 function loadShell() {
   shell ||= fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
   return shell;
-}
-
-async function loadStatements() {
-  statements ||= new Map((await db()`SELECT ps_number, data FROM problem_statements ORDER BY sno ASC`)
-    .map((row) => [row.ps_number, row.data]));
-  return statements;
 }
 
 function escapeHtml(value = "") {
@@ -42,15 +34,22 @@ function fact(label, value) {
 }
 
 function statementBody(problem) {
+  // Three statements carry no description at all, so the section is only rendered when
+  // there is text for it -- an empty <p> would read as a broken page to a crawler.
+  const description = problem.description
+    ? `<section class="detail-section"><h2>Official description</h2><p class="detail-prose">${escapeHtml(problem.description)}</p></section>`
+    : "";
+  const expected = problem.expected_solution
+    ? `<section class="detail-section"><h2>Expected solution</h2><p class="detail-prose">${escapeHtml(problem.expected_solution)}</p></section>`
+    : "";
   return `<p class="detail-eyebrow">${escapeHtml(problem.org)}</p>
     <h1 id="detail-title">${escapeHtml(problem.title)}</h1>
     <div class="detail-tags"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span></div>
     <div class="detail-grid"><div>
-      <section class="detail-section"><h2>Official description</h2><p class="detail-prose">${escapeHtml(problem.description)}</p></section>
+      ${description}${expected}
     </div><aside>
       ${fact("Organization", problem.org)}${fact("Department", problem.department)}
       ${fact("Category", problem.category)}${fact("Theme", problem.theme)}
-      ${fact("Deadline for idea submission", problem.deadline)}
       <p class="detail-eyebrow">Official source: <a href="https://sih.gov.in/sih2026PS" rel="noreferrer noopener">sih.gov.in</a></p>
     </aside></div>`;
 }
@@ -82,8 +81,10 @@ function render({ title, description, url, body, ld }) {
     [/<article class="detail-view" id="detail-view" hidden/, '<article class="detail-view" id="detail-view"'],
     [/<body>/, '<body data-server-rendered="statement">'],
     // The statement's own title is the page h1, so the hidden list heading steps down.
+    // Safe as a non-global replace: the shell holds exactly one h1 (guards.mjs pins
+    // that), and the body carrying <h1 id="detail-title"> is injected after this loop.
     [/<h1 id="page-title">/, '<h2 id="page-title">'],
-    [/<\/h1>\s*<\/div>/, '</h2>\n        </div>'],
+    [/<\/h1>/, "</h2>"],
   ];
   let html = loadShell();
   for (const [pattern, replacement] of meta) html = html.replace(pattern, replacement);
@@ -112,11 +113,10 @@ function breadcrumb(url, name) {
 export default async function handler(request, response) {
   if (request.method !== "GET") return methodNotAllowed(response, ["GET"]);
   const id = String(request.query.id || "").trim().toUpperCase().replace(/\/$/, "");
-  const rows = await loadStatements();
 
   if (!id) {
     const url = `${ORIGIN}/problem-statements`;
-    const list = [...rows.values()];
+    const list = all();
     return send(response, 200, render({
       title: `All ${list.length} SIH 2026 Problem Statements — Full Official List`,
       description: `Every official Smart India Hackathon 2026 problem statement (${list.length} total) with its organisation, theme and category. Open any statement for the full official description.`,
@@ -133,7 +133,7 @@ export default async function handler(request, response) {
     }));
   }
 
-  const problem = rows.get(id);
+  const problem = byId(id);
   if (!problem) {
     return send(response, 404, render({
       title: "Problem statement not found — SIH 2026",
@@ -148,7 +148,9 @@ export default async function handler(request, response) {
   const title = `${problem.ps_number} — ${clamp(problem.title, 90)} | SIH 2026`;
   return send(response, 200, render({
     title,
-    description: clamp(`${problem.ps_number}: ${problem.description}`, 180),
+    // summary, not description: the three statements published without a Problem
+    // Statement section would otherwise get an empty meta description.
+    description: clamp(`${problem.ps_number}: ${problem.summary}`, 180),
     url,
     body: statementBody(problem),
     ld: {
@@ -159,7 +161,7 @@ export default async function handler(request, response) {
           "@type": "WebPage",
           name: problem.title,
           url,
-          description: clamp(problem.description, 300),
+          description: clamp(problem.summary, 300),
           inLanguage: "en-IN",
           isPartOf: { "@type": "WebSite", name: SITE, url: `${ORIGIN}/` },
           about: {
