@@ -584,7 +584,7 @@ const AI_TARGETS = {
 function detailTemplate(problem) {
   const review = reviewState(problem.ps_number);
   return `<p class="detail-eyebrow">${escapeHtml(problem.org)}</p>
-    <h2 id="detail-title">${escapeHtml(problem.title)}</h2>
+    <h1 id="detail-title">${escapeHtml(problem.title)}</h1>
     <div class="detail-tags"><span class="detail-tag">${escapeHtml(problem.ps_number)}</span><span class="detail-tag">${escapeHtml(problem.category)}</span><span class="detail-tag">${escapeHtml(problem.theme)}</span></div>
     <div class="detail-grid"><div>
       ${proseSection("Official description", problem.description, true)}
@@ -1278,6 +1278,16 @@ async function boot() {
   setAuthMode("login");
   // A protected deep link is remembered, then opened once authentication succeeds.
   if (location.pathname.startsWith(DETAIL_PREFIX)) pendingRoute = location.pathname;
+
+  // On a server-rendered statement page the official text is already in the HTML.
+  // A signed-out visitor (Googlebot included) keeps reading it instead of being
+  // bounced to the login gate, which is what made every statement unindexable.
+  if (document.body.dataset.serverRendered === "statement" && !readSession()) {
+    state.view = "detail";
+    $("#boot-screen").hidden = true;
+    $("#access-gate").hidden = true;
+    return;
+  }
 
   // A stored session renders the signed-in app straight away and rotates the token in
   // the background, so a reload never flashes the boot or login screen. An expired

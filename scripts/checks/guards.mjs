@@ -51,4 +51,25 @@ const listApi = fs.readFileSync(new URL("../../api/problems/index.js", import.me
 assert.match(listApi, /if \(request\.query\.all\)/, "bulk branch served by the list endpoint");
 assert.match(listApi, /allStatements \|\|=/, "bulk response cached for the function's lifetime");
 
+// api/statement.js rewrites the shell's metadata by matching exact tags in
+// index.html. A reformat there would silently serve homepage metadata on all 229
+// statement pages, so every anchor it depends on is asserted here.
+for (const anchor of [
+  '<link rel="canonical" href="https://sih.saireddy.dev/" />',
+  '<meta name="description" content="',
+  '<section class="access-gate access-gate-loading" id="boot-screen"',
+  '<article class="detail-view" id="detail-view" hidden',
+  '<div class="detail-body" id="detail-body">',
+  '<h1 id="page-title">',
+  "<body>",
+]) assert.ok(html.includes(anchor), `index.html keeps the anchor api/statement.js rewrites: ${anchor}`);
+assert.equal((html.match(/<h1[\s>]/g) || []).length, 1, "exactly one h1 in the shell");
+
+const statement = fs.readFileSync(new URL("../../api/statement.js", import.meta.url), "utf8");
+assert.match(statement, /s-maxage=3600/, "statement pages are CDN-cached, not rendered per crawl");
+const vercel = JSON.parse(fs.readFileSync(new URL("../../vercel.json", import.meta.url), "utf8"));
+assert.deepEqual(vercel.rewrites.map((r) => r.destination),
+  ["/api/statement", "/api/statement?id=:id", "/api/sitemap"], "public routes reach the renderers");
+assert.equal(vercel.functions["api/statement.js"].includeFiles, "index.html", "the shell ships with the function that reads it");
+
 console.log("guard checks passed");

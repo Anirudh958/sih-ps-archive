@@ -8,7 +8,16 @@
   "theme_color": "#194fd1",
   "lang": "en-IN",
   "icons": [
-    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
-    { "src": "/assets/logo.jpg", "type": "image/jpeg", "sizes": "900x900" }
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "180x180"
+    }
   ]
 }

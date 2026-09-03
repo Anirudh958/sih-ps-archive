@@ -72,7 +72,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .access-gate-loading { z-index: 110; }
 .gate-panel { width: min(620px, 100%); padding: clamp(30px, 6vw, 64px); border-top: 5px solid var(--blue); background: var(--surface); box-shadow: 0 24px 80px #1823321f; }
 .gate-panel .brand-mark { margin-bottom: 42px; }
-.gate-panel h1 { margin-bottom: 24px; font-size: clamp(38px, 7vw, 65px); }
+/* The gate headings are h2 so that each rendered view has exactly one h1. */
+.gate-panel h1, .gate-panel h2 { margin-bottom: 24px; font-size: clamp(38px, 7vw, 65px); }
 .gate-panel > p:not(.eyebrow, .gate-status) { max-width: 480px; color: var(--muted); font: 16px/1.55 Georgia, serif; }
 .gate-status { min-height: 18px; margin: 12px 0 0; color: var(--muted); font-size: 12px; }
 .gate-status.error { color: var(--red); }
@@ -289,7 +290,7 @@ details[open] > summary .collapse-hint::after { transform: rotate(0deg); }
 .tour-actions .primary-button { margin-top: 0; }
 .detail-body { padding: clamp(32px, 5vw, 56px) clamp(20px, 5vw, 80px) 0; }
 .detail-eyebrow { margin: 0; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
-.detail-body h2 { max-width: 900px; margin: 10px 0 18px; font: 700 clamp(28px, 4vw, 48px)/1.05 Georgia, serif; }
+.detail-body h1, .detail-body h2 { max-width: 900px; margin: 10px 0 18px; font: 700 clamp(28px, 4vw, 48px)/1.05 Georgia, serif; }
 .detail-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 38px; }
 .detail-tag { padding: 6px 9px; border: 1px solid var(--line); border-radius: 3px; color: var(--body-ink); background: var(--paper); font-size: 11px; }
 .detail-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(240px, .5fr); gap: 48px; align-items: start; }

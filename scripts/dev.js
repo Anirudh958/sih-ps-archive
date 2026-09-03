@@ -19,6 +19,9 @@ const ROUTES = [
   [/^\/api\/filters$/, "../api/filters.js"],
   [/^\/api\/comments$/, "../api/comments/index.js"],
   [/^\/api\/session\/refresh$/, "../api/session/refresh.js"],
+  [/^\/problem-statements$/, "../api/statement.js"],
+  [/^\/problem-statements\/([^/.]+)$/, "../api/statement.js", "id"],
+  [/^\/sitemap\.xml$/, "../api/sitemap.js"],
   [/^\/api\/problems$/, "../api/problems/index.js"],
   [/^\/api\/problems\/([^/]+)$/, "../api/problems/[id].js", "id"],
 ];
@@ -35,6 +38,7 @@ http.createServer(async (request, response) => {
   const url = new URL(request.url, origin);
   response.status = (code) => { response.statusCode = code; return response; };
   response.json = (body) => { response.setHeader("Content-Type", "application/json; charset=utf-8"); response.end(JSON.stringify(body)); return response; };
+  response.send = (body) => { response.end(body); return response; };
 
   const match = ROUTES.map(([pattern, file, param]) => [pattern.exec(url.pathname), file, param]).find(([hit]) => hit);
   if (match) {
